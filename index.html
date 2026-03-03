@@ -583,6 +583,51 @@
       100% { color: inherit; text-shadow: none; }
     }
     .gold-flash { animation: goldblink 0.4s ease forwards; }
+
+    /* ─── Cards overlay ─── */
+    #cardsList {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      max-width: 360px;
+      width: 100%;
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+    .card-item {
+      background: rgba(255,215,0,0.07);
+      border: 1px solid rgba(255,215,0,0.25);
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .card-stars { color: #ffd700; font-size: 0.8rem; letter-spacing: 1px; }
+    .card-count { font-size: 0.55rem; color: rgba(255,215,0,0.6); }
+    .card-btn {
+      margin-top: 3px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      border: 1px solid;
+      font-size: 0.55rem;
+      font-weight: bold;
+      cursor: pointer;
+      background: transparent;
+      font-family: 'Courier New', monospace;
+    }
+    .card-btn.can-upgrade  { border-color: #ffd700; color: #ffd700; }
+    .card-btn.cant-upgrade { border-color: #444; color: #555; cursor: default; }
+    .card-btn.maxed        { border-color: #ffd700aa; color: #ffd700aa; cursor: default; }
+    .cards-earned-msg {
+      font-size: 0.72rem;
+      color: rgba(255,215,0,0.85);
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.5;
+      min-height: 16px;
+    }
   </style>
 </head>
 <body>
@@ -823,8 +868,10 @@
   <div class="overlay-sub" id="levelEndMap" style="color:var(--cyan);font-size:0.9rem;letter-spacing:0.1em;font-weight:bold"></div>
   <div class="overlay-stats" id="levelEndStats"></div>
   <div class="gems-earned" id="levelEndGems">+2 💎</div>
+  <div id="levelEndCardsMsg" class="cards-earned-msg"></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
     <button class="overlay-btn-secondary" onclick="openShop()">🛒 LOJA</button>
+    <button class="overlay-btn-secondary" onclick="openCards()" style="border-color:rgba(255,215,0,0.5);color:rgba(255,215,0,0.85)">🃏 CARTAS</button>
     <button class="overlay-btn" onclick="startNextLevel()">▶ NÍVEL <span id="nextLevelNum">2</span></button>
   </div>
 </div>
@@ -834,6 +881,13 @@
   <div class="shop-gem-display">💎 <span id="shopGems">0</span> GEMAS</div>
   <div id="shopItems"></div>
   <button class="overlay-btn" onclick="closeShop()">▶ CONTINUAR</button>
+</div>
+
+<div class="overlay" id="ovCards">
+  <div class="overlay-title" style="color:#ffd700;font-size:1.4rem">🃏 CARTAS DE TORRE</div>
+  <div class="cards-earned-msg" id="cardsEarnedMsg"></div>
+  <div id="cardsList"></div>
+  <button class="overlay-btn" onclick="closeCards()">▶ CONTINUAR</button>
 </div>
 
 <script>
@@ -1043,6 +1097,12 @@ let frameId = null;
 const WAVES_PER_LEVEL = 10;
 const MAX_LEVELS      = 50;
 
+// ── Card system globals ─────────────────────────────────────────
+let towerCards     = new Array(10).fill(0);  // cartas acumuladas por tipo
+let towerStarLevel = new Array(10).fill(0);  // nível de estrela por tipo (0-5)
+let towerUsage     = new Array(10).fill(0);  // torres colocadas neste nível
+const CARD_COST    = [3, 6, 10, 15, 25];     // cartas p/ subir level 1→2, 2→3, ..., 5
+
 // ── Shop items ────────────────────────────────────────────────────
 const SHOP_ITEMS = [
   { id:'gold_supply',  icon:'💰', name:'Suprimento',  desc:'+60 Ouro imediato',               gemCost:2, max:99 },
@@ -1058,79 +1118,168 @@ function genWavesForLevel(lvl) {
   const rng = makeRNG(lvl * 1009 + 3571);
   const ri  = (a, b) => a + Math.floor(rng() * (b - a + 1));
 
-  // Enemy types available based on level
-  const pool = [0];
-  if (lvl >= 2)  pool.push(1);
-  if (lvl >= 4)  pool.push(3);
-  if (lvl >= 5)  pool.push(5);  // Blindado
-  if (lvl >= 6)  pool.push(6);  // Regenerador
-  if (lvl >= 7)  pool.push(2);
-  if (lvl >= 8)  pool.push(7);  // Voador
-  if (lvl >= 10) pool.push(8);  // Esquadrão
-  const pick = () => pool[ri(0, pool.length - 1)];
+  // Inimigos pesados (máx 1 grupo por onda) e leves (podem repetir)
+  const HEAVY = new Set([2, 4, 5]); // Tanque, Chefe, Blindado
+
+  // Pool baseado no nível
+  const lightPool = [0];
+  const heavyPool = [];
+  if (lvl >= 2)  lightPool.push(1);
+  if (lvl >= 4)  lightPool.push(3);
+  if (lvl >= 5)  heavyPool.push(5);  // Blindado
+  if (lvl >= 6)  lightPool.push(6);  // Regenerador
+  if (lvl >= 7)  heavyPool.push(2);  // Tanque
+  if (lvl >= 8)  lightPool.push(7);  // Voador
+  if (lvl >= 10) lightPool.push(8);  // Esquadrão
+
+  const fullPool = [...lightPool, ...heavyPool];
+
+  // Sorteia tipo distinto dos já usados; pesados nunca repetem
+  function pickDistinct(usedSet) {
+    // Tenta sortear tipo não usado
+    const unused = fullPool.filter(t => !usedSet.has(t));
+    if (unused.length > 0) {
+      const t = unused[ri(0, unused.length - 1)];
+      usedSet.add(t);
+      return t;
+    }
+    // Todos usados: só tipos leves
+    const t = lightPool[ri(0, lightPool.length - 1)];
+    return t;
+  }
+
+  // Se tipo for pesado, reduz contagem e aumenta intervalo
+  function heavyAdj(t, count, interval) {
+    if (HEAVY.has(t)) {
+      return { n: Math.max(1, Math.ceil(count * 0.65)), iv: interval * 1.4 };
+    }
+    return { n: count, iv: interval };
+  }
 
   const iv = (base) => Math.max(0.25, base * Math.pow(0.975, lvl - 1));
   const n  = (base, mul) => Math.max(1, Math.round(base + lvl * mul));
 
+  // Gera cada onda com controle de tipos únicos pesados
+  function makeWave(...specs) {
+    const used = new Set();
+    return specs.map(({ base, mul, ivBase, delay }) => {
+      const t = pickDistinct(used);
+      const cnt = n(base, mul);
+      const interval = iv(ivBase);
+      const adj = heavyAdj(t, cnt, interval);
+      const group = { t, n: adj.n, iv: adj.iv };
+      if (delay !== undefined) group.d = delay;
+      return group;
+    });
+  }
+
   const waves = [
-    // Onda 1 — abertura leve
+    // Onda 1 — abertura leve (sempre Drone)
     [{ t: 0, n: n(4, 0.30), iv: iv(1.4) }],
-    // Onda 2 — um pouco mais
-    [{ t: pick(), n: n(5, 0.32), iv: iv(1.2) }],
-    // Onda 3 — dois grupos
-    [
-      { t: pick(), n: n(4, 0.28), iv: iv(1.1) },
-      { t: pick(), n: n(3, 0.20), iv: iv(1.5), d: n(4, 0.28) * iv(1.1) * 0.8 },
-    ],
-    // Onda 4 — aquece
-    [{ t: pick(), n: n(6, 0.38), iv: iv(1.0) }],
-    // Onda 5 — meio do nível, dois grupos simultâneos
-    [
-      { t: pick(), n: n(5, 0.33), iv: iv(0.95) },
-      { t: pick(), n: n(4, 0.25), iv: iv(1.3), d: n(5, 0.33) * iv(0.95) * 0.7 },
-    ],
+    // Onda 2 — um tipo leve
+    (() => {
+      const t = lightPool[ri(0, lightPool.length - 1)];
+      return [{ t, n: n(5, 0.32), iv: iv(1.2) }];
+    })(),
+    // Onda 3 — dois grupos distintos
+    makeWave(
+      { base: 4, mul: 0.28, ivBase: 1.1 },
+      { base: 3, mul: 0.20, ivBase: 1.5, delay: n(4, 0.28) * iv(1.1) * 0.8 }
+    ),
+    // Onda 4 — um grupo médio
+    (() => {
+      const t = lightPool[ri(0, lightPool.length - 1)];
+      const adj = heavyAdj(t, n(6, 0.38), iv(1.0));
+      return [{ t, n: adj.n, iv: adj.iv }];
+    })(),
+    // Onda 5 — padrão (será sobrescrita abaixo para lvl >= 3)
+    makeWave(
+      { base: 5, mul: 0.33, ivBase: 0.95 },
+      { base: 4, mul: 0.25, ivBase: 1.3,  delay: n(5, 0.33) * iv(0.95) * 0.7 }
+    ),
     // Onda 6 — pressão crescente
-    [{ t: pick(), n: n(7, 0.42), iv: iv(0.90) }],
-    // Onda 7 — começa a ficar duro
-    [
-      { t: pick(), n: n(6, 0.40), iv: iv(0.85) },
-      { t: pick(), n: n(4, 0.30), iv: iv(1.1), d: n(6, 0.40) * iv(0.85) * 0.6 },
-    ],
-    // Onda 8 — três grupos encavalados
-    [
-      { t: pick(), n: n(7, 0.45), iv: iv(0.80) },
-      { t: pick(), n: n(5, 0.35), iv: iv(1.0), d: n(7, 0.45) * iv(0.80) * 0.55 },
-      { t: pick(), n: n(3, 0.22), iv: iv(1.2), d: n(7, 0.45) * iv(0.80) * 0.90 },
-    ],
-    // Onda 9 — pré-final intenso
-    [
-      { t: pick(), n: n(8, 0.50), iv: iv(0.75) },
-      { t: pick(), n: n(6, 0.38), iv: iv(0.90), d: n(8, 0.50) * iv(0.75) * 0.50 },
-      { t: pick(), n: n(4, 0.26), iv: iv(1.1), d: n(8, 0.50) * iv(0.75) * 0.85 },
-    ],
-    // Onda 10 — grand finale
-    [
-      { t: pick(), n: n(10, 0.55), iv: iv(0.70) },
-      { t: pick(), n: n(6,  0.40), iv: iv(0.85), d: n(10, 0.55) * iv(0.70) * 0.50 },
-      { t: pick(), n: n(4,  0.28), iv: iv(1.0),  d: n(10, 0.55) * iv(0.70) * 0.85 },
-    ],
+    (() => {
+      const t = lightPool[ri(0, lightPool.length - 1)];
+      return [{ t, n: n(7, 0.42), iv: iv(0.90) }];
+    })(),
+    // Onda 7 — dois grupos, 1 pode ser pesado
+    makeWave(
+      { base: 6, mul: 0.40, ivBase: 0.85 },
+      { base: 4, mul: 0.30, ivBase: 1.1,  delay: n(6, 0.40) * iv(0.85) * 0.6 }
+    ),
+    // Onda 8 — três grupos (máx 1 pesado)
+    makeWave(
+      { base: 7, mul: 0.45, ivBase: 0.80 },
+      { base: 5, mul: 0.35, ivBase: 1.0,  delay: n(7, 0.45) * iv(0.80) * 0.55 },
+      { base: 3, mul: 0.22, ivBase: 1.2,  delay: n(7, 0.45) * iv(0.80) * 0.90 }
+    ),
+    // Onda 9 — pré-final intenso (máx 1 pesado)
+    makeWave(
+      { base: 8, mul: 0.50, ivBase: 0.75 },
+      { base: 6, mul: 0.38, ivBase: 0.90, delay: n(8, 0.50) * iv(0.75) * 0.50 },
+      { base: 4, mul: 0.26, ivBase: 1.1,  delay: n(8, 0.50) * iv(0.75) * 0.85 }
+    ),
+    // Onda 10 — grand finale (máx 1 pesado; boss separado abaixo)
+    makeWave(
+      { base: 10, mul: 0.55, ivBase: 0.70 },
+      { base: 6,  mul: 0.40, ivBase: 0.85, delay: n(10, 0.55) * iv(0.70) * 0.50 },
+      { base: 4,  mul: 0.28, ivBase: 1.0,  delay: n(10, 0.55) * iv(0.70) * 0.85 }
+    ),
   ];
 
-  // Onda 5 especial: mini-boss + escolta com recompensa bônus
+  // Onda 5 especial: mini-boss + escolta de leves
   if (lvl >= 3) {
+    const escoltaT = lightPool[ri(0, lightPool.length - 1)];
+    const bossT    = lvl >= 7 ? 2 : (lvl >= 5 ? 5 : 1);
+    const escN = n(7, 0.40);
+    const escIv = iv(0.82);
+    const adjEsc = heavyAdj(escoltaT, escN, escIv);
     waves[4] = [
-      { t: pick(), n: n(7, 0.40), iv: iv(0.82) },
-      { t: lvl >= 7 ? 2 : (lvl >= 5 ? 5 : 1), n: 1, iv: 8, d: n(7, 0.40) * iv(0.82) * 0.55 },
+      { t: escoltaT, n: adjEsc.n, iv: adjEsc.iv },
+      { t: bossT, n: 1, iv: 8, d: adjEsc.n * adjEsc.iv * 0.55 },
     ];
   }
 
-  // Boss na onda 10 a partir do nível 5
+  // Boss na onda 10 a partir do nível 5 (grupo separado com delay grande)
   if (lvl >= 5) {
     const bossCnt = lvl % 10 === 0 ? 3 : lvl % 5 === 0 ? 2 : 1;
-    waves[9].push({ t: 4, n: bossCnt, iv: 5, d: n(10, 0.55) * iv(0.70) * 0.90 });
+    // Delay longo para chegar depois dos outros grupos
+    const bossDelay = n(10, 0.55) * iv(0.70) * 1.05;
+    waves[9].push({ t: 4, n: bossCnt, iv: 5, d: bossDelay });
   }
 
   return waves;
+}
+
+// ── Award cards at level end ──────────────────────────────────────
+function awardLevelCards(lvl) {
+  const totalCards = Math.floor(lvl / 2) + 3;  // 3 no nível 1, 8 no nível 10
+  const earned = new Array(10).fill(0);
+
+  // Pool ponderado: torres desbloqueadas com peso = 1 + uso*2
+  const weights = [];
+  let totalWeight = 0;
+  for (let i = 0; i < 10; i++) {
+    if (TOWER_UNLOCK[i] <= lvl) {
+      const w = 1 + towerUsage[i] * 2;
+      weights.push({ idx: i, w });
+      totalWeight += w;
+    }
+  }
+  if (weights.length === 0) return earned;
+
+  for (let c = 0; c < totalCards; c++) {
+    let r = Math.random() * totalWeight;
+    for (const { idx, w } of weights) {
+      r -= w;
+      if (r <= 0) {
+        earned[idx]++;
+        towerCards[idx]++;
+        break;
+      }
+    }
+  }
+  return earned;
 }
 
 // ── Init ─────────────────────────────────────────────────────────
@@ -1140,6 +1289,9 @@ function startGame() {
   level = 1; gems = 0;
   shopBonuses = { damage: 0, range: 0, income: 0, _purchases: {} };
   towers = []; enemies = []; projectiles = []; particles = []; floatTexts = [];
+  towerCards     = new Array(10).fill(0);
+  towerStarLevel = new Array(10).fill(0);
+  towerUsage     = new Array(10).fill(0);
   selectedTool = -1; activeTower = null;
   waveActive = false; enemiesLeft = 0;
   state = 'build';
@@ -1312,6 +1464,7 @@ function retryLevel() {
   // Devolve o ouro fixo do nível (torres são apagadas sem reembolso — punição suave)
   towers = [];
   gold   = 150 + (level - 1) * 50;
+  towerUsage.fill(0);
 
   currentMap   = genMapForLevel(level);
   rebuildPath();
@@ -1361,6 +1514,18 @@ function showLevelEnd() {
   gems  += gemsEarned;
   score += level * 15;
 
+  // Conceder cartas e montar resumo
+  const earnedCards = awardLevelCards(level);
+  const cardSummaryParts = [];
+  for (let i = 0; i < 10; i++) {
+    if (earnedCards[i] > 0) {
+      cardSummaryParts.push(`+${earnedCards[i]} 🃏 ${T_DEF[i].name}`);
+    }
+  }
+  const cardSummary = cardSummaryParts.length > 0
+    ? cardSummaryParts.join('  ·  ')
+    : '';
+
   document.getElementById('levelEndNum').textContent  = level;
   document.getElementById('levelEndMap').textContent  = '⬡ SETOR ' + (currentMap ? currentMap.name : '?');
   document.getElementById('levelEndGems').textContent = '+' + gemsEarned + ' 💎';
@@ -1368,6 +1533,12 @@ function showLevelEnd() {
     `<div class="ov-stat"><span class="ov-label">Ouro</span><span class="ov-val" style="color:var(--gold)">${gold}</span></div>
      <div class="ov-stat"><span class="ov-label">Vidas</span><span class="ov-val" style="color:var(--red)">${lives}</span></div>
      <div class="ov-stat"><span class="ov-label">Score</span><span class="ov-val" style="color:var(--green)">${score}</span></div>`;
+
+  const cardsEl = document.getElementById('levelEndCardsMsg');
+  if (cardsEl) cardsEl.textContent = cardSummary;
+  // Guarda resumo para o overlay de cartas
+  const cardsEarnedEl = document.getElementById('cardsEarnedMsg');
+  if (cardsEarnedEl) cardsEarnedEl.textContent = cardSummary || 'Nenhuma carta nova.';
 
   const nextBtn = document.querySelector('#ovLevelEnd .overlay-btn');
   if (level >= MAX_LEVELS) {
@@ -1408,6 +1579,7 @@ function startNextLevel() {
   // Limpar torres ao iniciar novo nível
   const refundCount = towers.length;
   towers = [];
+  towerUsage.fill(0);
 
   // Ouro fixo por nível: Nível 1=150, Nível 2=200, Nível 3=250...
   gold = 150 + (level - 1) * 50;
@@ -1446,6 +1618,70 @@ function openShop() {
 function closeShop() {
   document.getElementById('ovShop').classList.remove('show');
   document.getElementById('ovLevelEnd').classList.add('show');
+}
+
+// ── Cards overlay ─────────────────────────────────────────────────
+function openCards() {
+  renderCards();
+  document.getElementById('ovLevelEnd').classList.remove('show');
+  document.getElementById('ovCards').classList.add('show');
+}
+
+function closeCards() {
+  document.getElementById('ovCards').classList.remove('show');
+  document.getElementById('ovLevelEnd').classList.add('show');
+}
+
+function upgradeTowerCard(idx) {
+  const starLvl = towerStarLevel[idx];
+  if (starLvl >= 5) return;
+  const cost = CARD_COST[starLvl];
+  if (towerCards[idx] < cost) return;
+  towerCards[idx] -= cost;
+  towerStarLevel[idx]++;
+  renderCards();
+}
+
+function renderCards() {
+  const container = document.getElementById('cardsList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  for (let i = 0; i < 10; i++) {
+    if (TOWER_UNLOCK[i] > level) continue;  // só torres desbloqueadas
+    const tdef     = T_DEF[i];
+    const starLvl  = towerStarLevel[i];
+    const cards    = towerCards[i];
+    const maxed    = starLvl >= 5;
+    const cost     = maxed ? 0 : CARD_COST[starLvl];
+    const canUp    = !maxed && cards >= cost;
+
+    // Estrelas: preenchidas e vazias
+    const stars = '★'.repeat(starLvl) + '☆'.repeat(5 - starLvl);
+
+    // Botão de upgrade
+    let btnClass, btnLabel;
+    if (maxed) {
+      btnClass = 'maxed'; btnLabel = '★ MÁXIMO';
+    } else if (canUp) {
+      btnClass = 'can-upgrade'; btnLabel = `⬆ ${cost} cartas`;
+    } else {
+      btnClass = 'cant-upgrade'; btnLabel = `${cost} cartas`;
+    }
+
+    const div = document.createElement('div');
+    div.className = 'card-item';
+    div.innerHTML =
+      `<span style="font-size:0.65rem;font-weight:bold;color:${tdef.col}">${tdef.name.toUpperCase()}</span>` +
+      `<span class="card-stars">${stars}</span>` +
+      `<span class="card-count">🃏 ${cards} carta${cards !== 1 ? 's' : ''}</span>` +
+      (starLvl < 5
+        ? `<span style="font-size:0.5rem;color:rgba(255,215,0,0.45)">+12% DMG  +4% Alc</span>`
+        : `<span style="font-size:0.5rem;color:rgba(255,215,0,0.7)">+60% DMG  +20% Alc</span>`) +
+      `<button class="card-btn ${btnClass}" onclick="upgradeTowerCard(${i})">${btnLabel}</button>`;
+
+    container.appendChild(div);
+  }
 }
 
 function renderShopItems() {
@@ -1709,6 +1945,7 @@ class Tower {
     this.flashT     = 0;
     this.targetMode = 'first';  // 'first' | 'last' | 'strong' | 'weak'
     this.targeting  = null;
+    towerUsage[typeIdx]++;
   }
 
   _ampBoost() {
@@ -1726,11 +1963,13 @@ class Tower {
 
   dmg() {
     if (this.tdef.spec === 'boost' || this.tdef.spec === 'income') return 0;
-    return this.tdef.dmg * Math.pow(this.tdef.uf, this.level - 1) * (1 + (shopBonuses?.damage ?? 0)) * (1 + this._ampBoost());
+    const starMul = 1 + towerStarLevel[this.typeIdx] * 0.12;
+    return this.tdef.dmg * Math.pow(this.tdef.uf, this.level - 1) * (1 + (shopBonuses?.damage ?? 0)) * (1 + this._ampBoost()) * starMul;
   }
   range() {
     if (this.tdef.spec === 'income') return 0;
-    return (this.tdef.range + (this.level - 1) * 0.55) * (1 + (shopBonuses?.range ?? 0)) * (1 + this._ampBoost());
+    const starMul = 1 + towerStarLevel[this.typeIdx] * 0.04;
+    return (this.tdef.range + (this.level - 1) * 0.55) * (1 + (shopBonuses?.range ?? 0)) * (1 + this._ampBoost()) * starMul;
   }
   sellValue() { return Math.floor(this.totalCost * 0.6); }
 
