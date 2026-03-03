@@ -256,6 +256,61 @@
       padding: 5px 7px;
     }
 
+    .popup-target {
+      width: 100%;
+      margin-top: 5px;
+      padding: 4px 6px;
+      border-radius: 5px;
+      border: 1px solid rgba(0,212,255,0.3);
+      background: rgba(0,212,255,0.06);
+      font-family: 'Courier New', monospace;
+      font-size: 0.6rem;
+      font-weight: bold;
+      color: var(--cyan);
+      cursor: pointer;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .popup-target:hover { background: rgba(0,212,255,0.14); }
+
+    /* ─── Abilities bar ─── */
+    #abilitiesBar {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 5px;
+      padding: 5px 8px;
+      flex-shrink: 0;
+    }
+
+    .ability-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      padding: 4px 2px;
+      background: rgba(187,68,255,0.07);
+      border: 1px solid rgba(187,68,255,0.28);
+      border-radius: 7px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      color: var(--purple);
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .ability-btn:not(:disabled):hover, .ability-btn:not(:disabled):active {
+      background: rgba(187,68,255,0.18);
+    }
+    .ability-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .ab-icon  { font-size: 1.05rem; line-height: 1; }
+    .ab-name  { font-size: 0.5rem; letter-spacing: 0.04em; font-weight: bold; }
+    .ab-timer { font-size: 0.52rem; color: rgba(187,68,255,0.7); }
+
     /* ─── Overlays ─── */
     .overlay {
       display: none;
@@ -367,6 +422,7 @@
     <div id="towerPopup">
       <h4 id="popupTitle">Torre Laser</h4>
       <div class="popup-stat" id="popupStats"></div>
+      <button class="popup-target" id="btnTarget" onclick="cycleTargetMode()">🎯 Alvo: <span id="targetModeLabel">Frente</span></button>
       <div class="popup-btns">
         <button class="popup-btn popup-upgrade" id="btnUpgrade" onclick="upgradeTower()">⬆ Nível 2<br><span id="upgradeCost"></span></button>
         <button class="popup-btn popup-sell"    id="btnSell"    onclick="sellTower()">💰 Vender<br><span id="sellValue"></span></button>
@@ -406,6 +462,37 @@
       <span class="t-cost">70💰</span>
       <span class="t-rate">Lento</span>
     </button>
+    <button class="tower-btn" data-tid="4" onclick="selectTool(4)">
+      <span class="t-icon">🟢</span>
+      <span class="t-name">Sniper</span>
+      <span class="t-cost">120💰</span>
+      <span class="t-rate">Longo</span>
+    </button>
+    <button class="tower-btn" data-tid="5" onclick="selectTool(5)">
+      <span class="t-icon">🔴</span>
+      <span class="t-name">Plasma</span>
+      <span class="t-cost">90💰</span>
+      <span class="t-rate">Queima</span>
+    </button>
+  </div>
+
+  <!-- Abilities -->
+  <div id="abilitiesBar">
+    <button class="ability-btn" id="abilBomb"  onclick="useAbility('bomb')">
+      <span class="ab-icon">☢</span>
+      <span class="ab-name">BOMBA</span>
+      <span class="ab-timer" id="timerBomb">PRONTO</span>
+    </button>
+    <button class="ability-btn" id="abilCryo"  onclick="useAbility('cryo')">
+      <span class="ab-icon">❄</span>
+      <span class="ab-name">CRIOFIELD</span>
+      <span class="ab-timer" id="timerCryo">PRONTO</span>
+    </button>
+    <button class="ability-btn" id="abilPulse" onclick="useAbility('pulse')">
+      <span class="ab-icon">⚡</span>
+      <span class="ab-name">PULSO</span>
+      <span class="ab-timer" id="timerPulse">PRONTO</span>
+    </button>
   </div>
 
   <!-- Controls -->
@@ -421,10 +508,11 @@
   <div class="overlay-title" style="color:var(--cyan)">⚡ NEXUS<br>DEFENSE</div>
   <div class="overlay-sub">Inimigos alienígenas se aproximam.<br>Construa torres e proteja o Nexus!</div>
   <div class="overlay-stats">
-    <div class="ov-stat"><span class="ov-label">Torres</span><span class="ov-val" style="color:var(--cyan)">4 tipos</span></div>
+    <div class="ov-stat"><span class="ov-label">Torres</span><span class="ov-val" style="color:var(--cyan)">6 tipos</span></div>
     <div class="ov-stat"><span class="ov-label">Ondas</span><span class="ov-val" style="color:var(--green)">15</span></div>
     <div class="ov-stat"><span class="ov-label">Inimigos</span><span class="ov-val" style="color:var(--red)">5 tipos</span></div>
   </div>
+  <div class="overlay-sub" id="startHighScore" style="color:var(--gold);font-size:0.75rem"></div>
   <button class="overlay-btn" onclick="startGame()">▶ JOGAR</button>
 </div>
 
@@ -523,6 +611,8 @@ const T_DEF = [
   { name:'Míssil', cost:80,  range:3.2, rate:0.4,  dmg:60, spec:'splash', col:'#ff8c00', uf:1.65 },
   { name:'Tesla',  cost:100, range:2.5, rate:0.6,  dmg:30, spec:'chain',  col:'#cc44ff', uf:1.65 },
   { name:'Cryo',   cost:70,  range:2.8, rate:0.55, dmg:15, spec:'slow',   col:'#88ddff', uf:1.65 },
+  { name:'Sniper', cost:120, range:5.0, rate:0.22, dmg:90, spec:'none',   col:'#44ff88', uf:1.70 },
+  { name:'Plasma', cost:90,  range:2.2, rate:0.80, dmg:22, spec:'burn',   col:'#ff5500', uf:1.65 },
 ];
 
 // ── Enemy types ──────────────────────────────────────────────────
@@ -555,6 +645,33 @@ const WAVES = [
   [{t:0,n:15,iv:0.5},{t:1,n:10,iv:0.7},{t:2,n:8,iv:1.0,d:6},{t:4,n:2,d:17}],
 ];
 
+// ── Targeting modes ──────────────────────────────────────────────
+const TARGET_LABELS = { first:'Frente', last:'Atrás', strong:'+ Forte', weak:'− Fraco' };
+const TARGET_ORDER  = ['first', 'last', 'strong', 'weak'];
+
+// ── Abilities ────────────────────────────────────────────────────
+const ABILITIES = {
+  bomb:  { name:'Bomba',     maxCd:40, cd:0 },
+  cryo:  { name:'CrioCamp', maxCd:35, cd:0 },
+  pulse: { name:'Pulso',    maxCd:45, cd:0 },
+};
+
+// ── Highscore ────────────────────────────────────────────────────
+let highScore = 0;
+
+function loadHighScore() {
+  highScore = parseInt(localStorage.getItem('nexusHighScore') || '0');
+  const el = document.getElementById('startHighScore');
+  if (el) el.textContent = highScore > 0 ? '🏆 Recorde: ' + highScore : '';
+}
+
+function saveHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('nexusHighScore', score);
+  }
+}
+
 // ── Game state ───────────────────────────────────────────────────
 let gold, lives, wave, score, gameSpeed, state;
 let towers, enemies, projectiles, particles, floatTexts;
@@ -576,6 +693,8 @@ function startGame() {
   updateHUD();
   setBtnWave('▶ INICIAR ONDA 1', false);
   document.getElementById('btnSpeed').textContent = '⏩ 1×';
+  resetAbilities();
+  loadHighScore();
   if (frameId) cancelAnimationFrame(frameId);
   lastTs = 0;
   frameId = requestAnimationFrame(loop);
@@ -668,11 +787,14 @@ function waveComplete() {
 // ── End game ──────────────────────────────────────────────────────
 function endGame(victory) {
   state = victory ? 'victory' : 'gameover';
+  saveHighScore();
+  const isRecord = score >= highScore && score > 0;
+  const recordTag = isRecord ? `<div class="ov-stat"><span class="ov-label">Recorde</span><span class="ov-val" style="color:var(--gold)">🏆 ${highScore}</span></div>` : '';
   if (victory) {
-    document.getElementById('winStats').innerHTML = statsHTML(score, wave, lives);
+    document.getElementById('winStats').innerHTML = statsHTML(score, wave, lives) + recordTag;
     document.getElementById('ovVictory').classList.add('show');
   } else {
-    document.getElementById('goStats').innerHTML = statsHTML(score, wave, 0);
+    document.getElementById('goStats').innerHTML = statsHTML(score, wave, 0) + recordTag;
     document.getElementById('ovGameOver').classList.add('show');
   }
 }
@@ -687,6 +809,52 @@ function statsHTML(s, w, l) {
 
 function hideOverlays() {
   document.querySelectorAll('.overlay').forEach(o => o.classList.remove('show'));
+}
+
+// ── Abilities ─────────────────────────────────────────────────────
+function useAbility(id) {
+  if (state !== 'wave') return;
+  const ab = ABILITIES[id];
+  if (ab.cd > 0) return;
+  ab.cd = ab.maxCd;
+
+  switch (id) {
+    case 'bomb':
+      enemies.forEach(e => { if (!e.dead && !e.gone) { e.hit(200); spawnExplosion(e.x, e.y, '#ff3355'); } });
+      addFloat('☢ BOMBA ATÔMICA!', canvas.width / 2, canvas.height * 0.4, '#ff3355');
+      break;
+    case 'cryo':
+      enemies.forEach(e => { if (!e.dead && !e.gone) e.slowT = 5.0; });
+      addFloat('❄ CRIOFIELD!', canvas.width / 2, canvas.height * 0.4, '#88ddff');
+      break;
+    case 'pulse': {
+      const targets = enemies.filter(e => !e.dead && !e.gone)
+        .sort((a, b) => b.pIdx - a.pIdx).slice(0, 8);
+      targets.forEach(e => { e.hit(70); spawnMuzzle(e.x, e.y, '#cc44ff', 5); });
+      addFloat('⚡ PULSO TESLA!', canvas.width / 2, canvas.height * 0.4, '#cc44ff');
+      break;
+    }
+  }
+  updateAbilities(0);
+}
+
+function updateAbilities(dt) {
+  for (const [id, ab] of Object.entries(ABILITIES)) {
+    if (ab.cd > 0) ab.cd = Math.max(0, ab.cd - dt);
+    const key = id.charAt(0).toUpperCase() + id.slice(1);
+    const btn   = document.getElementById('abil' + key);
+    const timer = document.getElementById('timer' + key);
+    if (!btn) continue;
+    const ready = ab.cd <= 0;
+    btn.disabled = !ready || state !== 'wave';
+    timer.textContent = ready ? 'PRONTO' : Math.ceil(ab.cd) + 's';
+    timer.style.color = ready ? 'var(--green)' : 'rgba(187,68,255,0.7)';
+  }
+}
+
+function resetAbilities() {
+  for (const ab of Object.values(ABILITIES)) ab.cd = 0;
+  updateAbilities(0);
 }
 
 // ── Speed ─────────────────────────────────────────────────────────
@@ -717,6 +885,8 @@ function openPopup(tower, screenX, screenY) {
   const sellVal = tower.sellValue();
   document.getElementById('btnSell').innerHTML = `💰 Vender<br><span>+${sellVal}</span>`;
 
+  document.getElementById('targetModeLabel').textContent = TARGET_LABELS[tower.targetMode];
+
   const popup = document.getElementById('towerPopup');
   popup.style.display = 'block';
 
@@ -736,6 +906,13 @@ function openPopup(tower, screenX, screenY) {
 function closePopup() {
   activeTower = null;
   document.getElementById('towerPopup').style.display = 'none';
+}
+
+function cycleTargetMode() {
+  if (!activeTower) return;
+  const idx = TARGET_ORDER.indexOf(activeTower.targetMode);
+  activeTower.targetMode = TARGET_ORDER[(idx + 1) % TARGET_ORDER.length];
+  document.getElementById('targetModeLabel').textContent = TARGET_LABELS[activeTower.targetMode];
 }
 
 function upgradeTower() {
@@ -833,10 +1010,11 @@ class Tower {
     this.totalCost = this.tdef.cost;
     this.cx = col * CELL + CELL * 0.5;
     this.cy = row * CELL + CELL * 0.5;
-    this.angle    = 0;
-    this.cooldown = 0;
-    this.flashT   = 0;
-    this.targeting = null;
+    this.angle      = 0;
+    this.cooldown   = 0;
+    this.flashT     = 0;
+    this.targetMode = 'first';  // 'first' | 'last' | 'strong' | 'weak'
+    this.targeting  = null;
   }
 
   dmg()   { return this.tdef.dmg   * Math.pow(this.tdef.uf, this.level - 1); }
@@ -863,14 +1041,19 @@ class Tower {
 
   _findTarget() {
     const rangeP = this.range() * CELL;
-    let best = null;
-    for (const e of enemies) {
-      if (e.dead || e.gone) continue;
+    const inRange = enemies.filter(e => {
+      if (e.dead || e.gone) return false;
       const dx = e.x - this.cx, dy = e.y - this.cy;
-      if (dx * dx + dy * dy > rangeP * rangeP) continue;
-      if (!best || e.pIdx > best.pIdx) best = e;
+      return dx * dx + dy * dy <= rangeP * rangeP;
+    });
+    if (!inRange.length) return null;
+    switch (this.targetMode) {
+      case 'first':  return inRange.reduce((a, b) => b.pIdx > a.pIdx ? b : a);
+      case 'last':   return inRange.reduce((a, b) => b.pIdx < a.pIdx ? b : a);
+      case 'strong': return inRange.reduce((a, b) => b.hp  > a.hp   ? b : a);
+      case 'weak':   return inRange.reduce((a, b) => b.hp  < a.hp   ? b : a);
+      default:       return inRange.reduce((a, b) => b.pIdx > a.pIdx ? b : a);
     }
-    return best;
   }
 
   _fire(tgt) {
@@ -931,6 +1114,19 @@ class Tower {
         drawHex(ctx, 0, 0, s * 0.46); ctx.stroke();
         ctx.globalAlpha = 1;
         break;
+      case 4: // Sniper: cano longo + mira
+        ctx.fillRect(-3, -s * 0.5, s * 0.98, 4);       // cano longo
+        ctx.fillRect(s * 0.22, -s * 0.58, s * 0.28, 10); // capa da mira
+        ctx.beginPath(); ctx.arc(0, 0, s * 0.20, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 5: // Plasma: cano largo + bola de plasma
+        ctx.fillRect(-3, -s * 0.5, s * 0.60, 9);  // cano grosso
+        ctx.beginPath(); ctx.arc(0, 0, s * 0.26, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(s * 0.62, -s * 0.46, s * 0.20, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        break;
     }
 
     ctx.restore();
@@ -969,8 +1165,11 @@ class Enemy {
     this.y = pathPts[0] ? pathPts[0].y : 0;
     this.dead = false;
     this.gone = false;
-    this.slowT = 0;
+    this.slowT    = 0;
     this.hitFlash = 0;
+    this.burnT    = 0;
+    this.burnDmg  = 0;
+    this.burnTick = 0;
     this.bossHalo = typeIdx === 4 ? 0 : -1;  // oscillation phase
   }
 
@@ -979,6 +1178,17 @@ class Enemy {
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.slowT    > 0) this.slowT    -= dt;
     if (this.bossHalo >= 0) this.bossHalo += dt * 2;
+
+    // Burn DoT
+    if (this.burnT > 0) {
+      this.burnT    -= dt;
+      this.burnTick -= dt;
+      if (this.burnTick <= 0) {
+        this.burnTick = 0.5;
+        this.hit(this.burnDmg);
+        if (this.dead || this.gone) return;
+      }
+    }
 
     const spd = this.spd * (this.slowT > 0 ? 0.38 : 1);
     let rem   = spd * dt;
@@ -1065,6 +1275,14 @@ class Enemy {
       ctx.beginPath(); ctx.arc(0, 0, s * 1.6, 0, Math.PI * 2); ctx.stroke();
     }
 
+    // Burn ring
+    if (this.burnT > 0) {
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#ff5500';
+      ctx.lineWidth   = 2.5;
+      ctx.beginPath(); ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2); ctx.stroke();
+    }
+
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
@@ -1147,6 +1365,13 @@ class Projectile {
       tgt.hit(this.dmg);
       tgt.slowT = 2.0;
       spawnMuzzle(tgt.x, tgt.y, this.col, 5);
+
+    } else if (this.spec === 'burn') {
+      tgt.hit(this.dmg);
+      tgt.burnT    = 3.0;
+      tgt.burnDmg  = 8;
+      tgt.burnTick = 0.5;
+      spawnMuzzle(tgt.x, tgt.y, this.col, 4);
 
     } else {
       tgt.hit(this.dmg);
@@ -1390,6 +1615,7 @@ function loop(ts) {
   enemies.forEach(e => e.update(dt));
   projectiles.forEach(p => p.update(dt));
   particles.forEach(p => p.update(dt));
+  updateAbilities(rawDt);
 
   // Cleanup
   enemies     = enemies.filter(e => !e.dead && !e.gone);
@@ -1410,6 +1636,7 @@ function loop(ts) {
 
 // ── Boot ──────────────────────────────────────────────────────────
 resizeCanvas();
+loadHighScore();
 </script>
 </body>
 </html>
