@@ -424,6 +424,75 @@
       pointer-events: none;
       z-index: 300;
     }
+
+    /* ─── Gems / Level HUD colors ─── */
+    #valGems  { color: #cc88ff; }
+    #valLevel { color: var(--orange); }
+
+    /* ─── Level-end overlay ─── */
+    .gems-earned {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #cc88ff;
+      text-shadow: 0 0 18px rgba(200,136,255,0.55);
+      letter-spacing: 0.06em;
+    }
+    .overlay-btn-secondary {
+      padding: 11px 26px;
+      background: rgba(255,215,0,0.08);
+      border: 1.5px solid var(--gold);
+      border-radius: 8px;
+      color: var(--gold);
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      transition: background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .overlay-btn-secondary:hover { background: rgba(255,215,0,0.2); }
+
+    /* ─── Shop overlay ─── */
+    #ovShop { padding: 12px 10px; }
+    .shop-gem-display {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #cc88ff;
+      letter-spacing: 0.06em;
+      margin: -4px 0 6px;
+    }
+    #shopItems {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      max-width: 340px;
+      width: 100%;
+    }
+    .shop-item {
+      background: rgba(0,212,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .shop-item:not(.maxed):not(.cant-afford):hover {
+      background: rgba(0,212,255,0.16);
+      border-color: var(--cyan);
+    }
+    .shop-item.maxed      { opacity: 0.42; cursor: default; }
+    .shop-item.cant-afford{ opacity: 0.50; cursor: default; }
+    .si-icon  { font-size: 1.4rem; line-height: 1.1; }
+    .si-name  { font-size: 0.60rem; font-weight: bold; letter-spacing: 0.04em; text-align: center; }
+    .si-desc  { font-size: 0.50rem; color: rgba(0,212,255,0.55); text-align: center; line-height: 1.3; }
+    .si-cost  { font-size: 0.72rem; font-weight: bold; color: #cc88ff; }
+    .si-count { font-size: 0.48rem; color: rgba(0,212,255,0.38); }
   </style>
 </head>
 <body>
@@ -445,12 +514,12 @@
       <span class="hud-value" id="valWave">0 / 15</span>
     </div>
     <div class="hud-item">
-      <span class="hud-label">Mapa</span>
-      <span class="hud-value" style="font-size:0.65rem;color:var(--cyan)" id="valMap">ALPHA</span>
+      <span class="hud-label">Nível</span>
+      <span class="hud-value" id="valLevel">1</span>
     </div>
     <div class="hud-item">
-      <span class="hud-label">Score</span>
-      <span class="hud-value" id="valScore">0</span>
+      <span class="hud-label">Gemas</span>
+      <span class="hud-value" id="valGems">0</span>
     </div>
   </div>
 
@@ -491,35 +560,35 @@
       <span class="t-name">Míssil</span>
       <span class="t-cost">80💰</span>
       <span class="t-rate">Splash</span>
-      <span class="t-lock">🔒 Onda 3</span>
+      <span class="t-lock">🔒 Nv.3</span>
     </button>
     <button class="tower-btn" data-tid="2" onclick="selectTool(2)">
       <span class="t-icon">🟣</span>
       <span class="t-name">Tesla</span>
       <span class="t-cost">100💰</span>
       <span class="t-rate">Cadeia</span>
-      <span class="t-lock">🔒 Onda 6</span>
+      <span class="t-lock">🔒 Nv.6</span>
     </button>
     <button class="tower-btn" data-tid="3" onclick="selectTool(3)">
       <span class="t-icon">🔷</span>
       <span class="t-name">Cryo</span>
       <span class="t-cost">70💰</span>
       <span class="t-rate">Lento</span>
-      <span class="t-lock">🔒 Onda 2</span>
+      <span class="t-lock">🔒 Nv.2</span>
     </button>
     <button class="tower-btn" data-tid="4" onclick="selectTool(4)">
       <span class="t-icon">🟢</span>
       <span class="t-name">Sniper</span>
       <span class="t-cost">120💰</span>
       <span class="t-rate">Longo</span>
-      <span class="t-lock">🔒 Onda 9</span>
+      <span class="t-lock">🔒 Nv.9</span>
     </button>
     <button class="tower-btn" data-tid="5" onclick="selectTool(5)">
       <span class="t-icon">🔴</span>
       <span class="t-name">Plasma</span>
       <span class="t-cost">90💰</span>
       <span class="t-rate">Queima</span>
-      <span class="t-lock">🔒 Onda 12</span>
+      <span class="t-lock">🔒 Nv.12</span>
     </button>
   </div>
 
@@ -556,7 +625,7 @@
   <div class="overlay-sub">Inimigos alienígenas se aproximam.<br>Construa torres e proteja o Nexus!</div>
   <div class="overlay-stats">
     <div class="ov-stat"><span class="ov-label">Torres</span><span class="ov-val" style="color:var(--cyan)">6 tipos</span></div>
-    <div class="ov-stat"><span class="ov-label">Ondas</span><span class="ov-val" style="color:var(--green)">15</span></div>
+    <div class="ov-stat"><span class="ov-label">Níveis</span><span class="ov-val" style="color:var(--green)">50</span></div>
     <div class="ov-stat"><span class="ov-label">Inimigos</span><span class="ov-val" style="color:var(--red)">5 tipos</span></div>
   </div>
   <div class="overlay-sub" id="startHighScore" style="color:var(--gold);font-size:0.75rem"></div>
@@ -571,9 +640,27 @@
 
 <div class="overlay" id="ovVictory">
   <div class="overlay-title" style="color:var(--green)">🏆 VITÓRIA!</div>
-  <div class="overlay-sub">Você defendeu o Nexus com sucesso!</div>
+  <div class="overlay-sub">Você conquistou todos os 50 níveis!</div>
   <div class="overlay-stats" id="winStats"></div>
   <button class="overlay-btn" onclick="startGame()">↺ JOGAR NOVAMENTE</button>
+</div>
+
+<div class="overlay" id="ovLevelEnd">
+  <div class="overlay-title" style="color:var(--green)">✅ NÍVEL <span id="levelEndNum">1</span><br>CONCLUÍDO!</div>
+  <div class="overlay-sub" id="levelEndMap" style="color:var(--cyan);font-size:0.9rem;letter-spacing:0.1em;font-weight:bold"></div>
+  <div class="overlay-stats" id="levelEndStats"></div>
+  <div class="gems-earned" id="levelEndGems">+2 💎</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="overlay-btn-secondary" onclick="openShop()">🛒 LOJA</button>
+    <button class="overlay-btn" onclick="startNextLevel()">▶ NÍVEL <span id="nextLevelNum">2</span></button>
+  </div>
+</div>
+
+<div class="overlay" id="ovShop">
+  <div class="overlay-title" style="color:var(--gold);font-size:1.5rem">🛒 LOJA</div>
+  <div class="shop-gem-display">💎 <span id="shopGems">0</span> GEMAS</div>
+  <div id="shopItems"></div>
+  <button class="overlay-btn" onclick="closeShop()">▶ CONTINUAR</button>
 </div>
 
 <script>
@@ -603,79 +690,95 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// ── Maps (0=path, 1=buildable) ───────────────────────────────────
-// 3 mapas que se alternam a cada 5 ondas
-const MAPS = [
-  {
-    name: 'SETOR ALPHA',
-    base: [
-      [1,1,0,1,1,1,1,1,1,1],  // 0
-      [1,1,0,1,1,1,1,1,1,1],  // 1
-      [1,1,0,1,1,1,1,1,1,1],  // 2
-      [1,1,0,0,0,0,0,0,1,1],  // 3
-      [1,1,1,1,1,1,1,0,1,1],  // 4
-      [1,1,1,1,1,1,1,0,1,1],  // 5
-      [1,1,1,1,1,1,1,0,1,1],  // 6
-      [1,0,0,0,0,0,0,0,1,1],  // 7
-      [1,0,1,1,1,1,1,1,1,1],  // 8
-      [1,0,1,1,1,1,1,1,1,1],  // 9
-      [1,0,1,1,1,1,1,1,1,1],  // 10
-      [1,0,0,0,0,0,0,0,1,1],  // 11
-      [1,1,1,1,1,1,1,0,1,1],  // 12
-      [1,1,1,1,1,1,1,0,0,1],  // 13 ← saída col 9
-    ],
-    waypoints: [[2,0],[2,3],[7,3],[7,7],[1,7],[1,11],[7,11],[7,13],[10,13]],
-  },
-  {
-    name: 'ZONA BETA',
-    // Entrada topo col 8 → desce → vira esq em row3 → vira dir em row7 → desce → saída dir
-    base: [
-      [1,1,1,1,1,1,1,1,0,1],  // 0
-      [1,1,1,1,1,1,1,1,0,1],  // 1
-      [1,1,1,1,1,1,1,1,0,1],  // 2
-      [1,0,0,0,0,0,0,0,0,1],  // 3 (cols 1-8 caminho)
-      [1,0,1,1,1,1,1,1,1,1],  // 4
-      [1,0,1,1,1,1,1,1,1,1],  // 5
-      [1,0,1,1,1,1,1,1,1,1],  // 6
-      [1,0,0,0,0,0,0,1,1,1],  // 7 (cols 1-6 caminho)
-      [1,1,1,1,1,1,0,1,1,1],  // 8
-      [1,1,1,1,1,1,0,1,1,1],  // 9
-      [1,1,1,1,1,1,0,1,1,1],  // 10
-      [1,1,1,1,1,1,0,0,1,1],  // 11 (cols 6-7)
-      [1,1,1,1,1,1,1,0,1,1],  // 12
-      [1,1,1,1,1,1,1,0,0,1],  // 13 ← saída col 9
-    ],
-    waypoints: [[8,0],[8,3],[1,3],[1,7],[6,7],[6,11],[7,11],[7,13],[10,13]],
-  },
-  {
-    name: 'NÚCLEO GAMMA',
-    // Entrada topo col 4 → 2 voltas em S mais apertadas
-    base: [
-      [1,1,1,1,0,1,1,1,1,1],  // 0
-      [1,1,1,1,0,1,1,1,1,1],  // 1
-      [1,1,1,1,0,0,0,0,1,1],  // 2 (cols 4-7)
-      [1,1,1,1,1,1,1,0,1,1],  // 3
-      [1,1,1,1,1,1,1,0,1,1],  // 4
-      [1,0,0,0,0,0,0,0,1,1],  // 5 (cols 1-7)
-      [1,0,1,1,1,1,1,1,1,1],  // 6
-      [1,0,1,1,1,1,1,1,1,1],  // 7
-      [1,0,0,0,0,1,1,1,1,1],  // 8 (cols 1-4)
-      [1,1,1,1,0,1,1,1,1,1],  // 9
-      [1,1,1,1,0,1,1,1,1,1],  // 10
-      [1,1,1,1,0,0,0,0,1,1],  // 11 (cols 4-7)
-      [1,1,1,1,1,1,1,0,1,1],  // 12
-      [1,1,1,1,1,1,1,0,0,1],  // 13 ← saída col 9
-    ],
-    waypoints: [[4,0],[4,2],[7,2],[7,5],[1,5],[1,8],[4,8],[4,11],[7,11],[7,13],[10,13]],
-  },
+// ── Procedural map generation ────────────────────────────────────
+function makeRNG(seed) {
+  let s = ((seed + 1) * 2654435761) >>> 0;
+  return function() {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17; s >>>= 0;
+    s ^= s << 5;  s >>>= 0;
+    return s / 0xFFFFFFFF;
+  };
+}
+
+const MAP_NAMES = [
+  'ALPHA','BETA','GAMMA','DELTA','EPSILON','ZETA','ETA','THETA','IOTA','KAPPA',
+  'LAMBDA','MU','NU','XI','OMICRON','PI','RHO','SIGMA','TAU','UPSILON',
+  'PHI','CHI','PSI','OMEGA','NEXUS','VOID','APEX','CORE','PRIME','ZERO',
+  'ECHO','NOVA','VEGA','ORION','LYRA','CYGNUS','HYDRA','DRACO','NEBULA','CENTAURI',
+  'SIRIUS','RIGEL','CAPELLA','ALTAIR','DENEB','SPICA','POLLUX','CASTOR','REGULUS','ARCTUR',
 ];
 
-let currentMapIdx = 0;
-let map = [];      // cópia de trabalho do mapa atual
-let pathPts = [];  // pontos em pixel do caminho [{x,y}]
+function genMapForLevel(lvl) {
+  const rng = makeRNG(lvl * 137 + 7919);
+  const ri  = (a, b) => a + Math.floor(rng() * (b - a + 1)); // [a,b] inclusive
+  const base = [];
+  for (let r = 0; r < ROWS; r++) base.push(new Array(COLS).fill(1));
+  const mark = (r, c) => { if (r >= 0 && r < ROWS && c >= 0 && c < COLS) base[r][c] = 0; };
+
+  const wps = [];
+  const usedCols = new Set();
+
+  // Entry column [1, COLS-2]
+  let col = ri(1, COLS - 2);
+  let row = 0;
+  usedCols.add(col);
+  wps.push([col, row]);
+  mark(row, col);
+
+  while (row < ROWS - 5) {
+    // Vertical: go down 2–4 rows
+    const segLen = ri(2, Math.min(4, ROWS - 4 - row));
+    const newRow = row + segLen;
+    for (let r = row + 1; r <= newRow; r++) mark(r, col);
+    row = newRow;
+    wps.push([col, row]);
+    if (row >= ROWS - 4) break;
+
+    // Horizontal: pick new column far from current, not yet used
+    let newCol = col, tries = 0;
+    do {
+      newCol = ri(1, COLS - 2);
+      tries++;
+    } while ((usedCols.has(newCol) || Math.abs(newCol - col) < 2) && tries < 30);
+    if (usedCols.has(newCol) || Math.abs(newCol - col) < 2) {
+      // fallback: pick furthest unused col
+      let best = -1, bestD = 0;
+      for (let c = 1; c < COLS - 1; c++) {
+        if (!usedCols.has(c) && Math.abs(c - col) > bestD) {
+          bestD = Math.abs(c - col); best = c;
+        }
+      }
+      if (best >= 0) newCol = best;
+    }
+    if (newCol !== col) {
+      const c1 = Math.min(col, newCol), c2 = Math.max(col, newCol);
+      for (let c = c1; c <= c2; c++) mark(row, c);
+      col = newCol;
+      usedCols.add(col);
+      wps.push([col, row]);
+    }
+  }
+
+  // Final vertical to bottom row
+  for (let r = row + 1; r < ROWS; r++) mark(r, col);
+  wps.push([col, ROWS - 1]);
+  wps.push([COLS, ROWS - 1]); // exit off-screen right
+
+  return {
+    name: MAP_NAMES[(lvl - 1) % MAP_NAMES.length],
+    base,
+    waypoints: wps,
+  };
+}
+
+let currentMap = null;  // { name, base, waypoints }
+let map        = [];    // working copy
+let pathPts    = [];    // pixel path points [{x,y}]
 
 function rebuildPath() {
-  const { base, waypoints } = MAPS[currentMapIdx];
+  if (!currentMap) return;
+  const { base, waypoints } = currentMap;
   map = base.map(r => [...r]);
   pathPts = [];
   for (let i = 0; i < waypoints.length - 1; i++) {
@@ -715,28 +818,8 @@ const E_DEF = [
   { name:'Chefe',   hp:550, spd:0.8, rew:75,  col:'#ff0044', sz:0.50, shape:'hexagon'  }, // chefe
 ];
 
-// ── Wave definitions (15 waves) ──────────────────────────────────
-// group: { t: enemyType, n: count, iv: interval(s), d: delay(s) }
-const WAVES = [
-  [{t:0,n:8, iv:1.3}],
-  [{t:0,n:10,iv:1.0}],
-  [{t:0,n:8, iv:1.0},{t:1,n:4,iv:1.8,d:5}],
-  [{t:1,n:10,iv:1.2}],
-  [{t:0,n:12,iv:0.8},{t:4,n:1,d:12}],
-  [{t:1,n:8, iv:1.0},{t:2,n:3,iv:2.5,d:6}],
-  [{t:0,n:14,iv:0.7},{t:1,n:6,iv:1.0,d:7}],
-  [{t:2,n:6, iv:1.5},{t:3,n:5,iv:1.2,d:5}],
-  [{t:3,n:10,iv:0.9},{t:1,n:8,iv:1.0,d:6}],
-  [{t:0,n:18,iv:0.6},{t:4,n:1,d:14}],
-  [{t:1,n:12,iv:0.9},{t:2,n:5,iv:1.5,d:7}],
-  [{t:3,n:14,iv:0.8},{t:2,n:6,iv:1.3,d:8}],
-  [{t:0,n:20,iv:0.5},{t:1,n:12,iv:0.8,d:6},{t:2,n:4,iv:2.0,d:13}],
-  [{t:2,n:10,iv:1.0},{t:3,n:10,iv:1.0,d:6},{t:4,n:1,d:16}],
-  [{t:0,n:15,iv:0.5},{t:1,n:10,iv:0.7},{t:2,n:8,iv:1.0,d:6},{t:4,n:2,d:17}],
-];
-
 // ── Tower unlock progression ─────────────────────────────────────
-// Índice = tipo de torre; valor = onda necessária para desbloquear
+// Índice = tipo de torre; valor = NÍVEL necessário para desbloquear
 // [Laser, Míssil, Tesla, Cryo, Sniper, Plasma]
 const TOWER_UNLOCK = [1, 3, 6, 2, 9, 12];
 
@@ -769,21 +852,75 @@ function saveHighScore() {
 
 // ── Game state ───────────────────────────────────────────────────
 let gold, lives, wave, score, gameSpeed, state;
+let level, gems, currentWaves, shopBonuses;
 let towers, enemies, projectiles, particles, floatTexts;
 let selectedTool;   // -1 = select mode, 0-3 = tower type
 let activeTower;    // tower currently shown in popup
 let waveActive, enemiesLeft;
 let frameId = null;
 
+const WAVES_PER_LEVEL = 3;
+const MAX_LEVELS      = 50;
+
+// ── Shop items ────────────────────────────────────────────────────
+const SHOP_ITEMS = [
+  { id:'gold_supply',  icon:'💰', name:'Suprimento',  desc:'+60 Ouro imediato',               gemCost:2, max:99 },
+  { id:'extra_life',   icon:'❤',  name:'Med Kit',     desc:'+3 Vidas (máx. 30)',               gemCost:3, max:10 },
+  { id:'dmg_boost',    icon:'⚔',  name:'Armamento+',  desc:'Torres fazem +12% de dano',       gemCost:4, max:4  },
+  { id:'range_boost',  icon:'🔭',  name:'Alcance+',    desc:'Torres alcançam +10% mais longe',  gemCost:4, max:4  },
+  { id:'wave_income',  icon:'💸',  name:'Interesse',   desc:'+25% ouro de bônus por onda',     gemCost:5, max:3  },
+  { id:'ability_cd',   icon:'⚡',  name:'Acelerador',  desc:'Habilidades 20% mais rápidas',    gemCost:6, max:3  },
+];
+
+// ── Procedural waves per level ────────────────────────────────────
+function genWavesForLevel(lvl) {
+  const rng = makeRNG(lvl * 1009 + 3571);
+  const ri  = (a, b) => a + Math.floor(rng() * (b - a + 1));
+
+  // Enemy types available based on level
+  const pool = [0];
+  if (lvl >= 2) pool.push(1);
+  if (lvl >= 4) pool.push(3);
+  if (lvl >= 7) pool.push(2);
+  const pick = () => pool[ri(0, pool.length - 1)];
+
+  const n1  = 5  + Math.floor(lvl * 0.40);
+  const n2  = 4  + Math.floor(lvl * 0.35);
+  const n3  = 8  + Math.floor(lvl * 0.50);
+  const iv  = (base) => Math.max(0.28, base * Math.pow(0.975, lvl - 1));
+
+  const w1 = [{ t: pick(), n: n1, iv: iv(1.3) }];
+
+  const w2 = [
+    { t: pick(), n: n2, iv: iv(1.0) },
+    { t: pick(), n: Math.ceil(n2 * 0.5), iv: iv(1.5), d: n2 * iv(1.0) * 0.8 },
+  ];
+
+  const w3 = [
+    { t: pick(), n: n3, iv: iv(0.75) },
+    { t: pick(), n: Math.ceil(n3 * 0.4), iv: iv(1.0), d: n3 * iv(0.75) * 0.6 },
+  ];
+  if (lvl >= 5) {
+    const bossCnt = lvl % 10 === 0 ? 3 : lvl % 5 === 0 ? 2 : 1;
+    w3.push({ t: 4, n: bossCnt, iv: 5, d: n3 * iv(0.75) * 0.85 });
+  }
+
+  return [w1, w2, w3];
+}
+
 // ── Init ─────────────────────────────────────────────────────────
 function startGame() {
   hideOverlays();
-  currentMapIdx = 0;
   gold = 150; lives = 20; wave = 0; score = 0; gameSpeed = 1;
+  level = 1; gems = 0;
+  shopBonuses = { damage: 0, range: 0, income: 0, _purchases: {} };
   towers = []; enemies = []; projectiles = []; particles = []; floatTexts = [];
   selectedTool = -1; activeTower = null;
   waveActive = false; enemiesLeft = 0;
   state = 'build';
+  currentMap = genMapForLevel(level);
+  rebuildPath();
+  currentWaves = genWavesForLevel(level);
   closePopup();
   setTool(-1);
   updateHUD();
@@ -800,9 +937,9 @@ function startGame() {
 function updateHUD() {
   document.getElementById('valGold').textContent  = gold;
   document.getElementById('valLives').textContent = lives;
-  document.getElementById('valWave').textContent  = wave + ' / ' + WAVES.length;
-  document.getElementById('valScore').textContent = score;
-  document.getElementById('valMap').textContent   = MAPS[currentMapIdx].name.split(' ')[1] || MAPS[currentMapIdx].name;
+  document.getElementById('valWave').textContent  = wave + ' / ' + WAVES_PER_LEVEL;
+  document.getElementById('valLevel').textContent = level;
+  document.getElementById('valGems').textContent  = gems;
   refreshTowerBarAfford();
 }
 
@@ -820,7 +957,7 @@ function refreshTowerUnlocks() {
   document.querySelectorAll('.tower-btn[data-tid]').forEach(btn => {
     const tid = parseInt(btn.dataset.tid);
     if (tid < 0) return;
-    const unlocked = wave >= TOWER_UNLOCK[tid] - 1;
+    const unlocked = level >= TOWER_UNLOCK[tid];
     btn.classList.toggle('locked', !unlocked);
     btn.disabled = !unlocked;
   });
@@ -834,7 +971,7 @@ function setBtnWave(txt, disabled) {
 
 // ── Tools / tower selection ───────────────────────────────────────
 function selectTool(tid) {
-  if (tid >= 0 && wave < TOWER_UNLOCK[tid] - 1) return; // torre ainda bloqueada
+  if (tid >= 0 && level < TOWER_UNLOCK[tid]) return; // torre ainda bloqueada
   setTool(tid);
   closePopup();
 }
@@ -848,16 +985,15 @@ function setTool(tid) {
 // ── Wave logic ───────────────────────────────────────────────────
 function launchWave() {
   if (waveActive || state !== 'build') return;
-  if (wave >= WAVES.length) return;
+  if (wave >= WAVES_PER_LEVEL) return;
   waveActive = true;
   state = 'wave';
   setBtnWave('⏳ ONDA EM CURSO...', true);
 
-  const groups = WAVES[wave];
+  const groups = currentWaves[wave];
   wave++;
   updateHUD();
 
-  // Count total enemies
   enemiesLeft = groups.reduce((s, g) => s + g.n, 0);
 
   groups.forEach(g => {
@@ -866,7 +1002,7 @@ function launchWave() {
       const spawnDelay = baseDelay + i * (g.iv || 1.0) * 1000;
       setTimeout(() => {
         if (state === 'gameover' || state === 'victory') return;
-        enemies.push(new Enemy(g.t, wave - 1));
+        enemies.push(new Enemy(g.t, level - 1));
       }, spawnDelay / gameSpeed);
     }
   });
@@ -882,29 +1018,18 @@ function onEnemyRemoved() {
 function waveComplete() {
   if (!waveActive) return;
   waveActive = false;
-  const bonus = 8 + wave * 3;
+  const incomeMulti = 1 + shopBonuses.income;
+  const bonus = Math.round((8 + level * 2) * incomeMulti);
   gold  += bonus;
   score += bonus;
   addFloat('Onda ' + wave + ' ✓  +' + bonus + '💰', canvas.width / 2, canvas.height * 0.5, '#00ff88');
 
-  // Troca de mapa a cada 5 ondas
-  if (wave === 5)  switchMap(1);
-  else if (wave === 10) switchMap(2);
-  else updateHUD();
-
-  // Notificações de torres desbloqueadas
-  T_DEF.forEach((tdef, tid) => {
-    if (TOWER_UNLOCK[tid] - 1 === wave) {
-      setTimeout(() => {
-        addFloat('🔓 ' + tdef.name.toUpperCase() + ' DESBLOQUEADA!', canvas.width / 2, canvas.height * 0.38, '#00ff88');
-      }, wave === 5 || wave === 10 ? 1200 : 400);
-    }
-  });
-
-  if (wave >= WAVES.length) {
-    setTimeout(() => endGame(true), 1400);
+  if (wave >= WAVES_PER_LEVEL) {
+    // Nível completo!
+    setTimeout(() => showLevelEnd(), 900);
     return;
   }
+  updateHUD();
   state = 'build';
   setBtnWave('▶ INICIAR ONDA ' + (wave + 1), false);
 }
@@ -916,49 +1041,161 @@ function endGame(victory) {
   const isRecord = score >= highScore && score > 0;
   const recordTag = isRecord ? `<div class="ov-stat"><span class="ov-label">Recorde</span><span class="ov-val" style="color:var(--gold)">🏆 ${highScore}</span></div>` : '';
   if (victory) {
-    document.getElementById('winStats').innerHTML = statsHTML(score, wave, lives) + recordTag;
+    document.getElementById('winStats').innerHTML = statsHTML(score, level, lives) + recordTag;
     document.getElementById('ovVictory').classList.add('show');
   } else {
-    document.getElementById('goStats').innerHTML = statsHTML(score, wave, 0) + recordTag;
+    document.getElementById('goStats').innerHTML = statsHTML(score, level, 0) + recordTag;
     document.getElementById('ovGameOver').classList.add('show');
   }
 }
 
-function statsHTML(s, w, l) {
+function statsHTML(s, lvl, l) {
   return `
     <div class="ov-stat"><span class="ov-label">Score</span><span class="ov-val" style="color:var(--green)">${s}</span></div>
-    <div class="ov-stat"><span class="ov-label">Ondas</span><span class="ov-val" style="color:var(--cyan)">${w}/${WAVES.length}</span></div>
+    <div class="ov-stat"><span class="ov-label">Nível</span><span class="ov-val" style="color:var(--cyan)">${lvl}/${MAX_LEVELS}</span></div>
     <div class="ov-stat"><span class="ov-label">Vidas</span><span class="ov-val" style="color:var(--red)">${l}</span></div>
   `;
 }
 
-function switchMap(idx) {
-  currentMapIdx = idx;
-  const newBase = MAPS[idx].base;
+// ── Level end / shop ──────────────────────────────────────────────
+function showLevelEnd() {
+  state = 'levelend';
+  saveHighScore();
+  const gemsEarned = 2 + Math.floor((level - 1) / 5);
+  gems  += gemsEarned;
+  score += level * 15;
+
+  document.getElementById('levelEndNum').textContent  = level;
+  document.getElementById('levelEndMap').textContent  = '⬡ SETOR ' + (currentMap ? currentMap.name : '?');
+  document.getElementById('levelEndGems').textContent = '+' + gemsEarned + ' 💎';
+  document.getElementById('levelEndStats').innerHTML  =
+    `<div class="ov-stat"><span class="ov-label">Ouro</span><span class="ov-val" style="color:var(--gold)">${gold}</span></div>
+     <div class="ov-stat"><span class="ov-label">Vidas</span><span class="ov-val" style="color:var(--red)">${lives}</span></div>
+     <div class="ov-stat"><span class="ov-label">Score</span><span class="ov-val" style="color:var(--green)">${score}</span></div>`;
+
+  const nextBtn = document.querySelector('#ovLevelEnd .overlay-btn');
+  if (level >= MAX_LEVELS) {
+    nextBtn.innerHTML = '🏆 VITÓRIA!';
+    nextBtn.onclick = () => { hideOverlays(); endGame(true); };
+  } else {
+    nextBtn.innerHTML = '▶ NÍVEL <span id="nextLevelNum">' + (level + 1) + '</span>';
+    nextBtn.onclick = startNextLevel;
+  }
+
+  updateHUD();
+  document.getElementById('ovLevelEnd').classList.add('show');
+}
+
+function startNextLevel() {
+  hideOverlays();
+  level++;
+  if (level > MAX_LEVELS) {
+    endGame(true);
+    return;
+  }
+
+  // Notificações de torres desbloqueadas
+  T_DEF.forEach((tdef, tid) => {
+    if (TOWER_UNLOCK[tid] === level) {
+      setTimeout(() => {
+        addFloat('🔓 ' + tdef.name.toUpperCase() + ' DESBLOQUEADA!', canvas.width / 2, canvas.height * 0.38, '#00ff88');
+      }, 400);
+    }
+  });
+
+  // Novo mapa para o novo nível
+  currentMap = genMapForLevel(level);
+  rebuildPath();
+  currentWaves = genWavesForLevel(level);
+  wave = 0;
 
   // Reembolsar torres que colidirem com o novo caminho
   let refundTotal = 0, refundCount = 0;
   towers = towers.filter(t => {
-    if (newBase[t.row][t.col] === 0) {
+    if (currentMap.base[t.row][t.col] === 0) {
       refundTotal += t.sellValue();
       refundCount++;
       return false;
     }
     return true;
   });
+  towers.forEach(t => { map[t.row][t.col] = 2; });
+  if (refundTotal > 0) {
+    gold += refundTotal;
+    setTimeout(() => {
+      addFloat(refundCount + ' torre(s) reembolsada(s)  +' + refundTotal + '💰', canvas.width / 2, canvas.height * 0.42, '#ffd700');
+    }, 300);
+  }
 
-  rebuildPath();
-  towers.forEach(t => { map[t.row][t.col] = 2; }); // remarcar posições das torres restantes
-  gold += refundTotal;
   closePopup();
+  setTool(-1);
+  refreshTowerUnlocks();
   updateHUD();
+  state = 'build';
+  setBtnWave('▶ INICIAR ONDA 1', false);
+  gameSpeed = 1;
+  document.getElementById('btnSpeed').textContent = '⏩ 1×';
+
+  // Reiniciar loop (estava pausado em 'levelend')
+  if (frameId) cancelAnimationFrame(frameId);
+  lastTs = 0;
+  frameId = requestAnimationFrame(loop);
 
   setTimeout(() => {
-    addFloat('🗺 ' + MAPS[idx].name, canvas.width / 2, canvas.height * 0.3, '#00d4ff');
-    if (refundCount > 0) {
-      addFloat(refundCount + ' torre(s) reembolsada(s)  +' + refundTotal + '💰', canvas.width / 2, canvas.height * 0.42, '#ffd700');
-    }
-  }, 200);
+    addFloat('⬡ SETOR ' + currentMap.name, canvas.width / 2, canvas.height * 0.3, '#00d4ff');
+  }, 300);
+}
+
+function openShop() {
+  renderShopItems();
+  document.getElementById('ovLevelEnd').classList.remove('show');
+  document.getElementById('ovShop').classList.add('show');
+}
+
+function closeShop() {
+  document.getElementById('ovShop').classList.remove('show');
+  document.getElementById('ovLevelEnd').classList.add('show');
+}
+
+function renderShopItems() {
+  document.getElementById('shopGems').textContent = gems;
+  const container = document.getElementById('shopItems');
+  container.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const count  = shopBonuses._purchases[item.id] || 0;
+    const maxed  = count >= item.max;
+    const afford = gems >= item.gemCost;
+    const div = document.createElement('div');
+    div.className = 'shop-item' + (maxed ? ' maxed' : (!afford ? ' cant-afford' : ''));
+    div.innerHTML =
+      `<span class="si-icon">${item.icon}</span>` +
+      `<span class="si-name">${item.name}</span>` +
+      `<span class="si-desc">${item.desc}</span>` +
+      `<span class="si-cost">${item.gemCost} 💎</span>` +
+      `<span class="si-count">${maxed ? 'MÁXIMO' : count + '/' + item.max}</span>`;
+    if (!maxed && afford) div.onclick = () => buyShopItem(item.id);
+    container.appendChild(div);
+  });
+}
+
+function buyShopItem(id) {
+  const item = SHOP_ITEMS.find(i => i.id === id);
+  if (!item) return;
+  const count = shopBonuses._purchases[id] || 0;
+  if (count >= item.max || gems < item.gemCost) return;
+  gems -= item.gemCost;
+  shopBonuses._purchases[id] = count + 1;
+  switch (id) {
+    case 'gold_supply':  gold += 60; updateHUD(); break;
+    case 'extra_life':   lives = Math.min(lives + 3, 30); updateHUD(); break;
+    case 'dmg_boost':    shopBonuses.damage += 0.12; break;
+    case 'range_boost':  shopBonuses.range  += 0.10; break;
+    case 'wave_income':  shopBonuses.income += 0.25; break;
+    case 'ability_cd':
+      for (const ab of Object.values(ABILITIES)) ab.maxCd = Math.max(5, ab.maxCd * 0.80);
+      break;
+  }
+  renderShopItems();
 }
 
 function hideOverlays() {
@@ -1172,8 +1409,8 @@ class Tower {
     this.targeting  = null;
   }
 
-  dmg()   { return this.tdef.dmg   * Math.pow(this.tdef.uf, this.level - 1); }
-  range() { return this.tdef.range + (this.level - 1) * 0.55; }
+  dmg()   { return this.tdef.dmg   * Math.pow(this.tdef.uf, this.level - 1) * (1 + (shopBonuses ? shopBonuses.damage : 0)); }
+  range() { return (this.tdef.range + (this.level - 1) * 0.55) * (1 + (shopBonuses ? shopBonuses.range : 0)); }
   sellValue() { return Math.floor(this.totalCost * 0.6); }
 
   update(dt) {
@@ -1318,7 +1555,7 @@ class Enemy {
   constructor(typeIdx, waveIdx) {
     this.typeIdx = typeIdx;
     this.edef = E_DEF[typeIdx];
-    const scl  = 1 + waveIdx * 0.06;
+    const scl  = 1 + waveIdx * 0.10;   // waveIdx = level - 1 (0–49)
     this.maxHp = Math.round(this.edef.hp * scl);
     this.hp    = this.maxHp;
     this.spd   = this.edef.spd * CELL;    // px/s
@@ -1768,7 +2005,7 @@ function drawWaveInfo() {
 let lastTs = 0;
 
 function loop(ts) {
-  if (state === 'gameover' || state === 'victory' || state === 'start') return;
+  if (state === 'gameover' || state === 'victory' || state === 'start' || state === 'levelend') return;
   frameId = requestAnimationFrame(loop);
 
   const rawDt = Math.min((ts - lastTs) / 1000, 0.05);
