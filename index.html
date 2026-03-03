@@ -196,88 +196,117 @@
       background: rgba(255,140,0,0.2);
     }
 
-    /* ─── Tower popup (upgrade/sell) ─── */
-    #towerPopup {
+    /* ─── Tower panel (painel fixo de upgrade/venda) ─── */
+    #towerPanel {
       display: none;
-      position: absolute;
-      background: rgba(7,13,26,0.97);
-      border: 1px solid var(--cyan);
-      border-radius: 10px;
-      padding: 10px 12px;
-      z-index: 50;
-      min-width: 140px;
-      box-shadow: 0 0 20px rgba(0,212,255,0.2);
-    }
-
-    #towerPopup h4 {
-      font-size: 0.78rem;
-      margin-bottom: 6px;
-      letter-spacing: 0.06em;
-    }
-
-    .popup-stat {
-      font-size: 0.62rem;
-      color: rgba(0,212,255,0.6);
-      margin-bottom: 4px;
-    }
-
-    .popup-btns {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .popup-btn {
-      flex: 1;
-      padding: 5px 4px;
-      border-radius: 5px;
-      border: 1px solid;
-      font-family: 'Courier New', monospace;
-      font-size: 0.62rem;
-      font-weight: bold;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .popup-upgrade {
-      background: rgba(0,212,255,0.1);
-      border-color: var(--cyan);
-      color: var(--cyan);
-      line-height: 1.3;
-    }
-    .popup-upgrade:not(:disabled):hover { background: rgba(0,212,255,0.22); }
-    .popup-upgrade:disabled { opacity: 0.35; cursor: default; }
-
-    .popup-sell {
-      background: rgba(255,215,0,0.1);
-      border-color: var(--gold);
-      color: var(--gold);
-    }
-
-    .popup-close {
-      background: rgba(255,51,85,0.1);
-      border-color: var(--red);
-      color: var(--red);
-      flex: 0 0 auto;
-      padding: 5px 7px;
-    }
-
-    .popup-target {
       width: 100%;
-      margin-top: 5px;
-      padding: 4px 6px;
-      border-radius: 5px;
+      max-width: 420px;
+      background: linear-gradient(180deg, #0d1e38 0%, var(--bg2) 100%);
+      border-top: 2px solid var(--cyan);
+      box-shadow: 0 -6px 28px rgba(0,212,255,0.25);
+      padding: 9px 10px 10px;
+      flex-direction: column;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+    #towerPanel.show { display: flex; }
+
+    #panelRow1 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #panelTitle {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: var(--cyan);
+      letter-spacing: 0.06em;
+      flex: 1;
+      text-shadow: 0 0 10px rgba(0,212,255,0.5);
+    }
+
+    #panelStats {
+      font-size: 0.57rem;
+      color: rgba(0,212,255,0.55);
+      flex: 1;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    #btnPanelTarget {
+      flex: 0 0 auto;
+      background: rgba(0,212,255,0.07);
       border: 1px solid rgba(0,212,255,0.3);
-      background: rgba(0,212,255,0.06);
+      border-radius: 6px;
+      padding: 5px 9px;
       font-family: 'Courier New', monospace;
       font-size: 0.6rem;
       font-weight: bold;
       color: var(--cyan);
       cursor: pointer;
-      text-align: left;
+      white-space: nowrap;
       -webkit-tap-highlight-color: transparent;
     }
-    .popup-target:hover { background: rgba(0,212,255,0.14); }
+    #btnPanelTarget:hover { background: rgba(0,212,255,0.16); }
+
+    #panelRow2 { display: flex; gap: 7px; }
+
+    #btnPanelUpgrade {
+      flex: 1;
+      padding: 10px 6px;
+      background: rgba(0,212,255,0.09);
+      border: 1.5px solid var(--cyan);
+      border-radius: 9px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      font-weight: bold;
+      color: var(--cyan);
+      cursor: pointer;
+      line-height: 1.35;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    #btnPanelUpgrade:not(:disabled):hover {
+      background: rgba(0,212,255,0.2);
+      box-shadow: 0 0 16px rgba(0,212,255,0.35);
+    }
+    #btnPanelUpgrade:disabled { opacity: 0.35; cursor: default; }
+
+    #btnPanelSell {
+      flex: 0 0 auto;
+      min-width: 80px;
+      padding: 10px 8px;
+      background: rgba(255,215,0,0.08);
+      border: 1.5px solid var(--gold);
+      border-radius: 9px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.7rem;
+      font-weight: bold;
+      color: var(--gold);
+      cursor: pointer;
+      line-height: 1.35;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    #btnPanelSell:hover { background: rgba(255,215,0,0.18); }
+
+    #btnPanelClose {
+      flex: 0 0 42px;
+      padding: 10px 4px;
+      background: rgba(255,51,85,0.08);
+      border: 1.5px solid var(--red);
+      border-radius: 9px;
+      font-family: 'Courier New', monospace;
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--red);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    #btnPanelClose:hover { background: rgba(255,51,85,0.18); }
 
     /* ─── Abilities bar ─── */
     #abilitiesBar {
@@ -428,16 +457,19 @@
   <!-- Canvas -->
   <div id="canvasWrap">
     <canvas id="canvas"></canvas>
-    <!-- Tower popup -->
-    <div id="towerPopup">
-      <h4 id="popupTitle">Torre Laser</h4>
-      <div class="popup-stat" id="popupStats"></div>
-      <button class="popup-target" id="btnTarget" onclick="cycleTargetMode()">🎯 Alvo: <span id="targetModeLabel">Frente</span></button>
-      <div class="popup-btns">
-        <button class="popup-btn popup-upgrade" id="btnUpgrade" onclick="upgradeTower()">⬆ Nível 2<br><span id="upgradeCost"></span></button>
-        <button class="popup-btn popup-sell"    id="btnSell"    onclick="sellTower()">💰 Vender<br><span id="sellValue"></span></button>
-        <button class="popup-btn popup-close"               onclick="closePopup()">✕</button>
-      </div>
+  </div>
+
+  <!-- Tower Panel — painel de upgrade/venda (substitui a barra de torres) -->
+  <div id="towerPanel">
+    <div id="panelRow1">
+      <span id="panelTitle">LASER — Nv.1/3</span>
+      <span id="panelStats">DMG:20 | Alc:2.8c | 1.1/s</span>
+      <button id="btnPanelTarget" onclick="cycleTargetMode()">🎯 <span id="targetModeLabel">Frente</span></button>
+    </div>
+    <div id="panelRow2">
+      <button id="btnPanelUpgrade" onclick="upgradeTower()">⬆ MELHORAR<br><small id="upgradeCostLabel" style="color:var(--gold)">Nv.2 — 28💰</small></button>
+      <button id="btnPanelSell" onclick="sellTower()">💰 VENDER<br><small id="sellValueLabel">+30💰</small></button>
+      <button id="btnPanelClose" onclick="closePopup()">✕</button>
     </div>
   </div>
 
@@ -985,49 +1017,50 @@ function cycleSpeed() {
   document.getElementById('btnSpeed').textContent = '⏩ ' + gameSpeed + '×';
 }
 
-// ── Tower popup ───────────────────────────────────────────────────
-function openPopup(tower, screenX, screenY) {
+// ── Tower panel ───────────────────────────────────────────────────
+function openPopup(tower) {
   activeTower = tower;
-  const t = tower.tdef;
+  const t   = tower.tdef;
   const lvl = tower.level;
-  document.getElementById('popupTitle').textContent = t.name + ' — Nível ' + lvl + '/3';
-  const nextRange = lvl < 3 ? (tower.range() + 0.55).toFixed(1) : null;
-  document.getElementById('popupStats').innerHTML =
-    `DMG: ${tower.dmg().toFixed(0)} | Alc: ${tower.range().toFixed(1)}c${nextRange ? ` → ${nextRange}c` : ''}<br>` +
-    `Cadência: ${t.rate.toFixed(1)}/s | Especial: ${t.spec === 'none' ? '—' : t.spec}`;
 
-  const btnUpg = document.getElementById('btnUpgrade');
-  const upgCost = lvl < 3 ? Math.round(t.cost * 0.55 * lvl) : 0;
-  const nextDmg = lvl < 3 ? Math.round(tower.tdef.dmg * Math.pow(tower.tdef.uf, lvl)) : 0;
-  btnUpg.innerHTML = lvl < 3
-    ? `⬆ Nível ${lvl+1}  ${upgCost}💰<br><small style="color:#ffd70099">DMG: ${tower.dmg().toFixed(0)} → ${nextDmg}</small>`
-    : `✅ Nível Máximo`;
-  btnUpg.disabled = lvl >= 3 || gold < upgCost;
+  // Título: nome + nível em destaque
+  document.getElementById('panelTitle').textContent =
+    t.name.toUpperCase() + ' — Nv.' + lvl + '/3';
 
-  const sellVal = tower.sellValue();
-  document.getElementById('btnSell').innerHTML = `💰 Vender<br><span>+${sellVal}</span>`;
+  // Stats: dano atual, alcance, cadência, especial
+  const spec = { none:'—', splash:'Splash', chain:'Cadeia', slow:'Lento', burn:'Queima' }[t.spec] || t.spec;
+  document.getElementById('panelStats').innerHTML =
+    `DMG: ${tower.dmg().toFixed(0)}  |  Alc: ${tower.range().toFixed(1)}c  |  ${t.rate.toFixed(1)}/s  |  ${spec}`;
 
+  // Botão de alvo
   document.getElementById('targetModeLabel').textContent = TARGET_LABELS[tower.targetMode];
 
-  const popup = document.getElementById('towerPopup');
-  popup.style.display = 'block';
+  // Botão de melhoria
+  const btnUpg  = document.getElementById('btnPanelUpgrade');
+  const upgCost = lvl < 3 ? Math.round(t.cost * 0.55 * lvl) : 0;
+  const nextDmg = lvl < 3 ? Math.round(t.dmg * Math.pow(t.uf, lvl)) : 0;
+  if (lvl < 3) {
+    btnUpg.innerHTML = `⬆ MELHORAR<br><small id="upgradeCostLabel" style="color:var(--gold)">Nv.${lvl+1} — ${upgCost}💰  ⟶ DMG ${nextDmg}</small>`;
+    btnUpg.disabled  = gold < upgCost;
+  } else {
+    btnUpg.innerHTML = '✅ NÍV. MÁXIMO';
+    btnUpg.disabled  = true;
+  }
 
-  // Position popup near tower, but keep in bounds
-  const cr = canvas.getBoundingClientRect();
-  const wrapRect = wrap.getBoundingClientRect();
-  const px = tower.col * CELL + CELL / 2;
-  const py = tower.row * CELL;
-  let left = px - 70;
-  let top  = py - 130;
-  left = Math.max(4, Math.min(canvas.width - 148, left));
-  top  = Math.max(4, top);
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
+  // Botão de venda
+  const sellVal = tower.sellValue();
+  document.getElementById('btnPanelSell').innerHTML =
+    `💰 VENDER<br><small id="sellValueLabel" style="color:var(--gold)">+${sellVal}💰</small>`;
+
+  // Mostrar painel, esconder barra de torres
+  document.getElementById('towerPanel').classList.add('show');
+  document.getElementById('towerBar').style.display = 'none';
 }
 
 function closePopup() {
   activeTower = null;
-  document.getElementById('towerPopup').style.display = 'none';
+  document.getElementById('towerPanel').classList.remove('show');
+  document.getElementById('towerBar').style.display = '';
 }
 
 function cycleTargetMode() {
@@ -1254,17 +1287,28 @@ class Tower {
     ctx.restore();
     ctx.shadowBlur = 0;
 
-    // Range ring on hover/select (show for selected tower type only)
+    // Anel de seleção + alcance quando a torre está selecionada
     if (activeTower === this) {
+      // Anel de seleção brilhante diretamente sobre a torre
       ctx.save();
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle = c;
+      ctx.strokeStyle = c;
+      ctx.lineWidth   = 2.5;
+      ctx.shadowBlur  = 20;
+      ctx.shadowColor = c;
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(this.cx, this.cy, s * 0.68, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur  = 0;
+      // Área de alcance preenchida
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle   = c;
       ctx.beginPath(); ctx.arc(this.cx, this.cy, this.range() * CELL, 0, Math.PI * 2);
       ctx.fill();
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = 0.40;
       ctx.strokeStyle = c;
-      ctx.lineWidth = 1;
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([5, 5]);
       ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
   }
