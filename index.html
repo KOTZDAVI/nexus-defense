@@ -1287,6 +1287,7 @@ function awardLevelCards(lvl) {
 function saveCardData() {
   localStorage.setItem('nexusCards',  JSON.stringify(towerCards));
   localStorage.setItem('nexusStars',  JSON.stringify(towerStarLevel));
+  saveCardsCloud(); // sincronia silenciosa com a nuvem (não awaita para não travar o jogo)
 }
 
 function loadCardData() {
@@ -3199,10 +3200,12 @@ async function doSignUp() {
   // Cria score inicial
   await supa.from('scores').insert({ user_id: uid, high_score: 0, max_level: 1, total_gems: 0 });
 
-  setAuthMsg('signupMsg', '✅ Conta criada! Verifique seu e-mail para confirmar.', false);
   supaUser    = data.user;
   supaProfile = { username };
-  setTimeout(() => { hideOverlays(); updateStartScreen(); document.getElementById('ovStart').classList.add('show'); }, 2000);
+  // Sobe o save local do dispositivo para a nuvem logo no cadastro
+  await saveCardsCloud();
+  setAuthMsg('signupMsg', '✅ Conta criada! Bem-vindo, ' + username + '!', false);
+  setTimeout(() => { hideOverlays(); updateStartScreen(); document.getElementById('ovStart').classList.add('show'); }, 1500);
 }
 
 // ── Sign In ───────────────────────────────────────────────────────
@@ -3217,6 +3220,7 @@ async function doSignIn() {
 
   supaUser = data.user;
   await loadProfile();
+  await loadCardsCloud();
   setAuthMsg('loginMsg', '✅ Bem-vindo, ' + (supaProfile?.username || '') + '!', false);
   setTimeout(() => { hideOverlays(); updateStartScreen(); document.getElementById('ovStart').classList.add('show'); }, 1200);
 }
@@ -3233,6 +3237,40 @@ async function loadProfile() {
   if (!supaUser) return;
   const { data } = await supa.from('profiles').select('username').eq('id', supaUser.id).single();
   supaProfile = data || null;
+}
+
+// ── Save cards/stars to Supabase ──────────────────────────────────
+async function saveCardsCloud() {
+  if (!supaUser) return;
+  await supa.from('save_data').upsert({
+    user_id:     supaUser.id,
+    tower_cards: towerCards,
+    tower_stars: towerStarLevel,
+    updated_at:  new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+}
+
+// ── Load cards/stars from Supabase ────────────────────────────────
+async function loadCardsCloud() {
+  if (!supaUser) return;
+  const { data } = await supa.from('save_data').select('tower_cards, tower_stars').eq('user_id', supaUser.id).single();
+  if (!data) {
+    // Primeira vez logado: envia o save local para a nuvem
+    await saveCardsCloud();
+    return;
+  }
+  const cloudCards = data.tower_cards;
+  const cloudStars = data.tower_stars;
+  if (Array.isArray(cloudCards) && cloudCards.length === 10) {
+    // Mescla: mantém o maior valor entre nuvem e local
+    towerCards     = towerCards.map((v, i) => Math.max(v, cloudCards[i] || 0));
+  }
+  if (Array.isArray(cloudStars) && cloudStars.length === 10) {
+    towerStarLevel = towerStarLevel.map((v, i) => Math.max(v, cloudStars[i] || 0));
+  }
+  // Salva o merge de volta (local + nuvem)
+  saveCardData();
+  await saveCardsCloud();
 }
 
 // ── Update start screen based on login state ──────────────────────
@@ -3303,12 +3341,13 @@ loadHighScore();
 loadCardData();
 renderTowerBarIcons();
 
-// Inicializa sessão Supabase (verifica se já está logado)
+// Inicializa sessão Supabase (verifica se já está logado — auto-login)
 (async () => {
   const { data: { session } } = await supa.auth.getSession();
   if (session) {
     supaUser = session.user;
     await loadProfile();
+    await loadCardsCloud();   // carrega save da nuvem e mescla com local
   }
   updateStartScreen();
 })();
