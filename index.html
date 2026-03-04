@@ -978,7 +978,8 @@
   <div id="dashRankingList"><div class="overlay-sub">Carregando...</div></div>
 
   <div class="dash-btns">
-    <button class="overlay-btn" onclick="startGame()" style="width:100%;max-width:320px">▶ JOGAR AGORA</button>
+    <button class="overlay-btn" id="dashBtnContinue" onclick="continueGame()" style="width:100%;max-width:320px;display:none">▶ CONTINUAR</button>
+    <button class="overlay-btn" id="dashBtnNew" onclick="startGame()" style="width:100%;max-width:320px">▶ JOGAR</button>
     <button class="dash-signout-btn" onclick="doSignOut()">↩ Sair da conta</button>
   </div>
 </div>
@@ -1448,14 +1449,32 @@ function loadCardData() {
   } catch (_) {}
 }
 
-// ── Init ─────────────────────────────────────────────────────────
+// ── Init (novo jogo do zero) ──────────────────────────────────────
 function startGame() {
+  clearProgressCloud(); // limpa qualquer save em andamento
+  _initGame(1, 0, 0, 150, 10);
+}
+
+// ── Continuar jogo salvo ──────────────────────────────────────────
+function continueGame() {
+  if (!savedProgress) { startGame(); return; }
+  _initGame(
+    savedProgress.level,
+    savedProgress.score,
+    savedProgress.gems,
+    savedProgress.gold,
+    savedProgress.lives
+  );
+}
+
+// ── Core de inicialização (compartilhado) ─────────────────────────
+function _initGame(lvl, sc, gm, gd, lv) {
   hideOverlays();
-  gold = 150; lives = 10; wave = 0; score = 0; gameSpeed = 1;
-  level = 1; gems = 0;
+  level = lvl; score = sc; gems = gm; gold = gd; lives = lv;
+  wave = 0; gameSpeed = 1;
   shopBonuses = { damage: 0, range: 0, income: 0, _purchases: {} };
   towers = []; enemies = []; projectiles = []; particles = []; floatTexts = [];
-  towerUsage = new Array(10).fill(0);  // cartas/estrelas são meta-progressão, não resetam
+  towerUsage = new Array(10).fill(0);
   selectedTool = -1; activeTower = null;
   waveActive = false; enemiesLeft = 0;
   state = 'build';
@@ -1650,6 +1669,7 @@ function endGame(victory) {
   state = victory ? 'victory' : 'gameover';
   saveHighScore();
   saveScoreCloud();
+  clearProgressCloud(); // fim de jogo = zera progresso salvo
   const isRecord = score >= highScore && score > 0;
   const recordTag = isRecord ? `<div class="ov-stat"><span class="ov-label">Recorde</span><span class="ov-val" style="color:var(--gold)">🏆 ${highScore}</span></div>` : '';
   if (victory) {
@@ -1762,6 +1782,9 @@ function startNextLevel() {
   updateHUD();
   state = 'build';
   setBtnWave('▶ INICIAR ONDA 1', false);
+
+  // Salvar progresso na nuvem (nível avançado)
+  saveProgressCloud();
 
   // Reiniciar loop (estava pausado em 'levelend')
   if (frameId) cancelAnimationFrame(frameId);
@@ -3393,7 +3416,9 @@ async function loadProfile() {
   supaProfile = data || null;
 }
 
-// ── Save cards/stars to Supabase ──────────────────────────────────
+let savedProgress = null; // progresso de jogo em andamento carregado da nuvem
+
+// ── Save cards/stars + progresso de run ──────────────────────────
 async function saveCardsCloud() {
   if (!supaUser) return;
   await supa.from('save_data').upsert({
@@ -3404,27 +3429,62 @@ async function saveCardsCloud() {
   }, { onConflict: 'user_id' });
 }
 
-// ── Load cards/stars from Supabase ────────────────────────────────
+async function saveProgressCloud() {
+  if (!supaUser) return;
+  await supa.from('save_data').upsert({
+    user_id:       supaUser.id,
+    current_level: level,
+    current_score: score,
+    current_gems:  gems,
+    current_gold:  gold,
+    current_lives: lives,
+    updated_at:    new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+}
+
+async function clearProgressCloud() {
+  if (!supaUser) return;
+  savedProgress = null;
+  await supa.from('save_data').upsert({
+    user_id:       supaUser.id,
+    current_level: 1,
+    current_score: 0,
+    current_gems:  0,
+    current_gold:  150,
+    current_lives: 10,
+    updated_at:    new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+}
+
+// ── Load cards/stars + progresso from Supabase ───────────────────
 async function loadCardsCloud() {
   if (!supaUser) return;
-  const { data } = await supa.from('save_data').select('tower_cards, tower_stars').eq('user_id', supaUser.id).single();
+  const { data } = await supa.from('save_data')
+    .select('tower_cards, tower_stars, current_level, current_score, current_gems, current_gold, current_lives')
+    .eq('user_id', supaUser.id).single();
   if (!data) {
-    // Primeira vez logado: envia o save local para a nuvem
     await saveCardsCloud();
     return;
   }
-  const cloudCards = data.tower_cards;
-  const cloudStars = data.tower_stars;
-  if (Array.isArray(cloudCards) && cloudCards.length === 10) {
-    // Mescla: mantém o maior valor entre nuvem e local
-    towerCards     = towerCards.map((v, i) => Math.max(v, cloudCards[i] || 0));
-  }
-  if (Array.isArray(cloudStars) && cloudStars.length === 10) {
-    towerStarLevel = towerStarLevel.map((v, i) => Math.max(v, cloudStars[i] || 0));
-  }
-  // Salva o merge de volta (local + nuvem)
+  // Mescla cartas e estrelas (mantém o maior valor)
+  if (Array.isArray(data.tower_cards) && data.tower_cards.length === 10)
+    towerCards     = towerCards.map((v, i) => Math.max(v, data.tower_cards[i] || 0));
+  if (Array.isArray(data.tower_stars) && data.tower_stars.length === 10)
+    towerStarLevel = towerStarLevel.map((v, i) => Math.max(v, data.tower_stars[i] || 0));
   saveCardData();
   await saveCardsCloud();
+  // Carrega progresso de run em andamento
+  if (data.current_level > 1) {
+    savedProgress = {
+      level: data.current_level,
+      score: data.current_score ?? 0,
+      gems:  data.current_gems  ?? 0,
+      gold:  data.current_gold  ?? 150,
+      lives: data.current_lives ?? 10,
+    };
+  } else {
+    savedProgress = null;
+  }
 }
 
 // ── Dashboard pós-login ───────────────────────────────────────────
@@ -3482,6 +3542,28 @@ async function showDashboard() {
         <span class="rank-lvl">Nv.${myRow.max_level}</span>
         <span class="rank-score">${myRow.high_score}pts</span>
       </div>`;
+  }
+
+  // Botões: CONTINUAR se há progresso, senão JOGAR
+  const btnContinue = document.getElementById('dashBtnContinue');
+  const btnNew      = document.getElementById('dashBtnNew');
+  if (savedProgress && savedProgress.level > 1) {
+    btnContinue.textContent = '▶ CONTINUAR — Nível ' + savedProgress.level;
+    btnContinue.style.display = 'block';
+    btnNew.textContent = '↺ NOVO JOGO';
+    btnNew.style.background   = 'rgba(0,212,255,0.04)';
+    btnNew.style.borderColor  = 'rgba(0,212,255,0.3)';
+    btnNew.style.color        = 'rgba(0,212,255,0.55)';
+    btnNew.style.fontSize     = '0.75rem';
+    btnNew.style.padding      = '9px 20px';
+  } else {
+    btnContinue.style.display = 'none';
+    btnNew.textContent = '▶ JOGAR';
+    btnNew.style.background  = '';
+    btnNew.style.borderColor = '';
+    btnNew.style.color       = '';
+    btnNew.style.fontSize    = '';
+    btnNew.style.padding     = '';
   }
 }
 
