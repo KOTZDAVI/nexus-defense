@@ -468,6 +468,116 @@
     .rank-score { color: var(--green); font-weight: bold; }
     .rank-lvl   { color: var(--orange); font-size: 0.62rem; }
 
+    /* ─── Dashboard pós-login ─── */
+    #ovDashboard {
+      padding: 16px 10px;
+      justify-content: flex-start;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    #ovDashboard::-webkit-scrollbar { display: none; }
+
+    .dash-player-card {
+      width: 100%;
+      max-width: 320px;
+      background: rgba(0,212,255,0.07);
+      border: 1px solid var(--cyan);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .dash-rank-badge {
+      min-width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--cyan);
+      background: rgba(0,212,255,0.12);
+      gap: 0;
+      flex-shrink: 0;
+    }
+    .dash-rank-badge .badge-pos {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--cyan);
+      line-height: 1;
+    }
+    .dash-rank-badge .badge-label {
+      font-size: 0.42rem;
+      color: rgba(0,212,255,0.5);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .dash-rank-badge.gold   { border-color: var(--gold);   background: rgba(255,215,0,0.12); }
+    .dash-rank-badge.gold   .badge-pos { color: var(--gold); }
+    .dash-rank-badge.silver { border-color: #ccc;           background: rgba(200,200,200,0.12); }
+    .dash-rank-badge.silver .badge-pos { color: #ccc; }
+    .dash-rank-badge.bronze { border-color: #cd7f32;        background: rgba(205,127,50,0.12); }
+    .dash-rank-badge.bronze .badge-pos { color: #cd7f32; }
+    .dash-player-info { flex: 1; }
+    .dash-player-name {
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--cyan);
+      letter-spacing: 0.05em;
+    }
+    .dash-player-stats {
+      display: flex;
+      gap: 12px;
+      margin-top: 5px;
+    }
+    .dash-stat { text-align: left; }
+    .dash-stat-val { font-size: 0.85rem; font-weight: bold; }
+    .dash-stat-lbl { font-size: 0.48rem; color: rgba(0,212,255,0.45); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .dash-section-title {
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      color: rgba(0,212,255,0.45);
+      text-transform: uppercase;
+      align-self: flex-start;
+      max-width: 320px;
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+    #dashRankingList {
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 38vh;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    #dashRankingList::-webkit-scrollbar { display: none; }
+
+    .dash-btns {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 320px;
+      padding-top: 4px;
+    }
+    .dash-signout-btn {
+      background: none;
+      border: none;
+      color: rgba(0,212,255,0.35);
+      font-family: 'Courier New', monospace;
+      font-size: 0.62rem;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    .dash-signout-btn:hover { color: var(--red); }
+
     /* Badge de usuário no start */
     #userBadge {
       display: none; align-items: center; gap: 8px;
@@ -832,6 +942,45 @@
 
   <div class="auth-divider">── ou ──</div>
   <button onclick="hideOverlays();document.getElementById('ovStart').classList.add('show')" style="background:none;border:none;color:rgba(0,212,255,0.4);font-family:'Courier New',monospace;font-size:0.65rem;cursor:pointer">← Voltar</button>
+</div>
+
+<!-- Dashboard pós-login -->
+<div class="overlay" id="ovDashboard" style="gap:12px">
+  <div class="overlay-title" style="font-size:1.4rem;color:var(--cyan);margin-bottom:0">⚡ NEXUS DEFENSE</div>
+
+  <!-- Card do jogador com posição no ranking -->
+  <div class="dash-player-card" id="dashPlayerCard">
+    <div class="dash-rank-badge" id="dashRankBadge">
+      <span class="badge-pos" id="dashRankPos">—</span>
+      <span class="badge-label">rank</span>
+    </div>
+    <div class="dash-player-info">
+      <div class="dash-player-name" id="dashPlayerName">—</div>
+      <div class="dash-player-stats">
+        <div class="dash-stat">
+          <div class="dash-stat-val" id="dashHighScore" style="color:var(--green)">0</div>
+          <div class="dash-stat-lbl">Recorde</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-val" id="dashMaxLevel" style="color:var(--orange)">1</div>
+          <div class="dash-stat-lbl">Nível máx.</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-val" id="dashTotalGems" style="color:#cc88ff">0</div>
+          <div class="dash-stat-lbl">Gemas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-section-title">🏆 Ranking Global</div>
+
+  <div id="dashRankingList"><div class="overlay-sub">Carregando...</div></div>
+
+  <div class="dash-btns">
+    <button class="overlay-btn" onclick="startGame()" style="width:100%;max-width:320px">▶ JOGAR AGORA</button>
+    <button class="dash-signout-btn" onclick="doSignOut()">↩ Sair da conta</button>
+  </div>
 </div>
 
 <!-- Ranking overlay -->
@@ -3205,7 +3354,7 @@ async function doSignUp() {
   // Sobe o save local do dispositivo para a nuvem logo no cadastro
   await saveCardsCloud();
   setAuthMsg('signupMsg', '✅ Conta criada! Bem-vindo, ' + username + '!', false);
-  setTimeout(() => { hideOverlays(); updateStartScreen(); document.getElementById('ovStart').classList.add('show'); }, 1500);
+  setTimeout(() => showDashboard(), 1500);
 }
 
 // ── Sign In ───────────────────────────────────────────────────────
@@ -3222,14 +3371,19 @@ async function doSignIn() {
   await loadProfile();
   await loadCardsCloud();
   setAuthMsg('loginMsg', '✅ Bem-vindo, ' + (supaProfile?.username || '') + '!', false);
-  setTimeout(() => { hideOverlays(); updateStartScreen(); document.getElementById('ovStart').classList.add('show'); }, 1200);
+  setTimeout(() => showDashboard(), 1200);
 }
 
 // ── Sign Out ──────────────────────────────────────────────────────
 async function doSignOut() {
   await supa.auth.signOut();
   supaUser = null; supaProfile = null;
-  updateStartScreen();
+  hideOverlays();
+  document.getElementById('ovStart').classList.add('show');
+  document.getElementById('startBtnsLogado').style.display    = 'none';
+  document.getElementById('startBtnsDeslogado').style.display = 'flex';
+  document.getElementById('userBadge').classList.remove('show');
+  loadHighScore();
 }
 
 // ── Load profile from DB ──────────────────────────────────────────
@@ -3273,18 +3427,76 @@ async function loadCardsCloud() {
   await saveCardsCloud();
 }
 
+// ── Dashboard pós-login ───────────────────────────────────────────
+async function showDashboard() {
+  hideOverlays();
+  document.getElementById('ovDashboard').classList.add('show');
+  document.getElementById('dashPlayerName').textContent = supaProfile?.username || '—';
+  document.getElementById('dashRankingList').innerHTML = '<div class="overlay-sub">Carregando...</div>';
+
+  const { data, error } = await supa
+    .from('scores')
+    .select('user_id, high_score, max_level, total_gems, profiles(username)')
+    .order('high_score', { ascending: false });
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('dashRankingList').innerHTML = '<div class="overlay-sub" style="color:rgba(0,212,255,0.4)">Nenhum score ainda. Seja o primeiro!</div>';
+    return;
+  }
+
+  // Encontrar posição do jogador atual
+  const myIdx = data.findIndex(r => r.user_id === supaUser?.id);
+  const myPos  = myIdx >= 0 ? myIdx + 1 : null;
+  const myRow  = myIdx >= 0 ? data[myIdx] : null;
+
+  // Atualizar card do jogador
+  const posLabels = ['gold', 'silver', 'bronze'];
+  const badge = document.getElementById('dashRankBadge');
+  badge.className = 'dash-rank-badge ' + (myPos ? (posLabels[myPos - 1] || '') : '');
+  document.getElementById('dashRankPos').textContent    = myPos ? myPos + '°' : '—';
+  document.getElementById('dashHighScore').textContent  = myRow?.high_score ?? 0;
+  document.getElementById('dashMaxLevel').textContent   = myRow?.max_level  ?? 1;
+  document.getElementById('dashTotalGems').textContent  = myRow?.total_gems ?? 0;
+
+  // Renderizar lista de ranking (top 10)
+  const medals = ['gold', 'silver', 'bronze'];
+  document.getElementById('dashRankingList').innerHTML = data.slice(0, 10).map((row, i) => {
+    const name   = row.profiles?.username || 'Desconhecido';
+    const isMe   = row.user_id === supaUser?.id;
+    const posClass = medals[i] || '';
+    return `<div class="rank-row ${isMe ? 'me' : ''}">
+      <span class="rank-pos ${posClass}">${i + 1}°</span>
+      <span class="rank-name">${name}${isMe ? ' 👈' : ''}</span>
+      <span class="rank-lvl">Nv.${row.max_level}</span>
+      <span class="rank-score">${row.high_score}pts</span>
+    </div>`;
+  }).join('');
+
+  // Se jogador estiver fora do top 10, exibir sua posição ao final
+  if (myPos && myPos > 10) {
+    document.getElementById('dashRankingList').innerHTML += `
+      <div style="text-align:center;font-size:0.6rem;color:rgba(0,212,255,0.35);padding:4px 0">• • •</div>
+      <div class="rank-row me">
+        <span class="rank-pos">${myPos}°</span>
+        <span class="rank-name">${supaProfile.username} 👈</span>
+        <span class="rank-lvl">Nv.${myRow.max_level}</span>
+        <span class="rank-score">${myRow.high_score}pts</span>
+      </div>`;
+  }
+}
+
 // ── Update start screen based on login state ──────────────────────
 function updateStartScreen() {
   const logado = !!supaUser && !!supaProfile;
-  document.getElementById('startBtnsLogado').style.display    = logado ? 'flex' : 'none';
-  document.getElementById('startBtnsDeslogado').style.display = logado ? 'none' : 'flex';
-  const badge = document.getElementById('userBadge');
   if (logado) {
-    badge.classList.add('show');
-    document.getElementById('badgeUsername').textContent = supaProfile.username;
-  } else {
-    badge.classList.remove('show');
+    showDashboard();
+    return;
   }
+  hideOverlays();
+  document.getElementById('ovStart').classList.add('show');
+  document.getElementById('startBtnsLogado').style.display    = 'none';
+  document.getElementById('startBtnsDeslogado').style.display = 'flex';
+  document.getElementById('userBadge').classList.remove('show');
   loadHighScore();
 }
 
