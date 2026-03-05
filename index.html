@@ -1010,7 +1010,10 @@
   <div class="overlay-title" style="color:var(--green)">🏆 VITÓRIA!</div>
   <div class="overlay-sub">Você conquistou todos os 50 níveis!</div>
   <div class="overlay-stats" id="winStats"></div>
-  <button class="overlay-btn" onclick="startGame()">↺ JOGAR NOVAMENTE</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+    <button class="overlay-btn" style="background:rgba(255,80,0,0.12);border-color:#ff5500;color:#ff8844;padding:10px 22px" onclick="startEndless()">🔁 MODO ENDLESS</button>
+    <button class="overlay-btn" onclick="startGame()">↺ NOVO JOGO</button>
+  </div>
 </div>
 
 <div class="overlay" id="ovLevelEnd">
@@ -1244,6 +1247,173 @@ let waveActive, enemiesLeft;
 let livesAtWaveStart = 0;  // para bônus de onda perfeita
 let frameId = null;
 
+// ── Drops ────────────────────────────────────────────────────────
+let drops = [];
+let goldRushTimer = 0; // segundos de gold rush ativo
+
+const DROP_CFG = {
+  gold:  { icon: '💰', color: '#ffd700', label: 'Ouro!' },
+  life:  { icon: '❤️', color: '#ff4466', label: '+Vida!' },
+  gem:   { icon: '💎', color: '#00ddff', label: '+Gema!' },
+  rush:  { icon: '⚡', color: '#aaff00', label: 'Gold Rush!' },
+};
+
+class Drop {
+  constructor(x, y, type) {
+    this.x = x; this.y = y; this.type = type;
+    this.ttl  = 5.5;
+    this.alpha = 0;
+    this.pulse = Math.random() * Math.PI * 2;
+    this.collected = false;
+    this.cfg = DROP_CFG[type];
+  }
+  update(dt) {
+    this.ttl  -= dt;
+    this.pulse += dt * 4.5;
+    this.alpha = Math.min(1, this.alpha + dt * 5);
+    if (this.ttl < 1.2) this.alpha = Math.max(0, this.ttl / 1.2);
+    return this.ttl <= 0;
+  }
+  draw() {
+    if (this.collected) return;
+    const r = CELL * 0.38;
+    const sc = 1 + 0.09 * Math.sin(this.pulse);
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+    ctx.translate(this.x, this.y);
+    ctx.scale(sc, sc);
+    // Halo
+    ctx.shadowColor = this.cfg.color; ctx.shadowBlur = 12;
+    ctx.fillStyle = this.cfg.color + '28';
+    ctx.strokeStyle = this.cfg.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Ícone
+    ctx.shadowBlur = 0;
+    ctx.font = `${Math.round(r * 1.15)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(this.cfg.icon, 0, 1);
+    ctx.restore();
+  }
+  hit(px, py) {
+    return Math.hypot(px - this.x, py - this.y) <= CELL * 0.45;
+  }
+}
+
+function tryDrop(x, y, typeIdx) {
+  const isBoss = (typeIdx === 4);
+  const r = Math.random();
+  let type = null;
+  if (isBoss)        type = 'gem';
+  else if (r < 0.04) type = 'gem';
+  else if (r < 0.10 && lives < 18) type = 'life';
+  else if (r < 0.20) type = 'rush';
+  else if (r < 0.48) type = 'gold';
+  if (type) drops.push(new Drop(x, y, type));
+}
+
+function collectDrop(drop) {
+  drop.collected = true;
+  switch (drop.type) {
+    case 'gold': {
+      const g = 20 + Math.floor(Math.random() * 35);
+      gold += g; score += g; updateHUD();
+      addFloat('💰 +' + g, drop.x, drop.y - CELL * 0.6, '#ffd700');
+      break; }
+    case 'life':
+      if (lives < 20) { lives++; updateHUD(); }
+      addFloat('❤️ +1 Vida!', drop.x, drop.y - CELL * 0.6, '#ff4466');
+      break;
+    case 'gem':
+      gems++; updateHUD();
+      addFloat('💎 +1 Gema!', drop.x, drop.y - CELL * 0.6, '#00ddff');
+      break;
+    case 'rush':
+      goldRushTimer = 14;
+      addFloat('⚡ GOLD RUSH 14s!', drop.x, drop.y - CELL * 0.6, '#aaff00');
+      break;
+  }
+}
+
+// ── Missões por onda ─────────────────────────────────────────────
+let currentMission = null;
+let missionKills   = 0;
+let missionAbilityUsed = false;
+let missionWaveStartTime = 0;
+
+const MISSION_DEFS = [
+  { type: 'kill',    gen: (w) => ({ target: 8 + w * 2, bonus: 25 + w * 4, bonusType: 'gold', label: () => `Mate ${8 + w*2}+ inimigos` }) },
+  { type: 'noleak',  gen: (w) => ({ target: 0,          bonus: 1,           bonusType: 'gem',  label: () => 'Não perca nenhuma vida' }) },
+  { type: 'ability', gen: (w) => ({ target: 0,          bonus: 30 + w * 5,  bonusType: 'gold', label: () => 'Use pelo menos 1 habilidade' }) },
+  { type: 'fast',    gen: (w) => ({ target: 28,          bonus: 1,           bonusType: 'gem',  label: () => 'Termine a onda em 28s' }) },
+];
+
+function genWaveMission(wave) {
+  const def = MISSION_DEFS[Math.floor(Math.random() * MISSION_DEFS.length)];
+  const m = def.gen(wave);
+  m.type = def.type;
+  m.done = false;
+  m.failed = false;
+  return m;
+}
+
+function checkMissionComplete() {
+  if (!currentMission || currentMission.done || currentMission.failed) return;
+  const m = currentMission;
+  let ok = false;
+  const elapsed = (Date.now() - missionWaveStartTime) / 1000;
+  switch (m.type) {
+    case 'kill':    ok = missionKills >= m.target; break;
+    case 'noleak':  ok = (lives >= livesAtWaveStart); break;
+    case 'ability': ok = missionAbilityUsed; break;
+    case 'fast':    ok = elapsed <= m.target; break;
+  }
+  if (ok) {
+    m.done = true;
+    if (m.bonusType === 'gold') {
+      gold += m.bonus; score += m.bonus; updateHUD();
+      addFloat('🎯 Missão! +' + m.bonus + '💰', canvas.width / 2, canvas.height * 0.35, '#aaff44');
+    } else {
+      gems += m.bonus; updateHUD();
+      addFloat('🎯 Missão! +' + m.bonus + '💎', canvas.width / 2, canvas.height * 0.35, '#44ffdd');
+    }
+  }
+}
+
+function drawMission() {
+  if (!currentMission || !waveActive) return;
+  const m = currentMission;
+  const labelFn = MISSION_DEFS.find(d => d.type === m.type)?.gen(wave);
+  const label = labelFn ? labelFn.label() : '';
+  const bonusStr = m.bonusType === 'gold' ? '+' + m.bonus + '💰' : '+' + m.bonus + '💎';
+  const color = m.done ? '#aaff44' : m.failed ? '#ff4444aa' : '#ffffffff';
+  const prefix = m.done ? '✓ ' : '🎯 ';
+  const txt = prefix + label + '  ' + bonusStr;
+  const fs = CELL * 0.20;
+  ctx.font = `${fs}px Courier New`;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.80;
+  ctx.fillText(txt, 6, canvas.height - 6);
+  ctx.globalAlpha = 1;
+  // Gold Rush indicator
+  if (goldRushTimer > 0) {
+    ctx.fillStyle = '#aaff00';
+    ctx.globalAlpha = 0.75;
+    ctx.fillText('⚡ GOLD RUSH: ' + Math.ceil(goldRushTimer) + 's', 6, canvas.height - 6 - fs - 4);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Modo Endless ─────────────────────────────────────────────────
+let endlessMode = false;
+
+function startEndless() {
+  endlessMode = true;
+  hideOverlays();
+  startNextLevel();  // continua do nível 51 em diante
+}
+
 const WAVES_PER_LEVEL = 10;
 const MAX_LEVELS      = 50;
 
@@ -1451,6 +1621,7 @@ function loadCardData() {
 
 // ── Init (novo jogo do zero) ──────────────────────────────────────
 function startGame() {
+  endlessMode = false;
   clearProgressCloud(); // limpa qualquer save em andamento
   _initGame(1, 0, 0, 150, 10);
 }
@@ -1473,10 +1644,12 @@ function _initGame(lvl, sc, gm, gd, lv) {
   level = lvl; score = sc; gems = gm; gold = gd; lives = lv;
   wave = 0; gameSpeed = 1;
   shopBonuses = { damage: 0, range: 0, income: 0, _purchases: {} };
-  towers = []; enemies = []; projectiles = []; particles = []; floatTexts = [];
+  towers = []; enemies = []; projectiles = []; particles = []; floatTexts = []; drops = [];
   towerUsage = new Array(10).fill(0);
   selectedTool = -1; activeTower = null;
   waveActive = false; enemiesLeft = 0;
+  currentMission = null; missionKills = 0; missionAbilityUsed = false;
+  goldRushTimer = 0;
   state = 'build';
   currentMap = genMapForLevel(level);
   rebuildPath();
@@ -1552,6 +1725,11 @@ function launchWave() {
   state = 'wave';
   livesAtWaveStart = lives;  // para bônus de onda perfeita
   setBtnWave('⏳ ONDA EM CURSO...', true);
+  // Missão da onda
+  missionKills = 0;
+  missionAbilityUsed = false;
+  missionWaveStartTime = Date.now();
+  currentMission = genWaveMission(wave + 1);
 
   const groups = currentWaves[wave];
   wave++;
@@ -1581,6 +1759,8 @@ function onEnemyRemoved() {
 function waveComplete() {
   if (!waveActive) return;
   waveActive = false;
+  checkMissionComplete();
+  drops = []; // limpa drops não coletados
   const incomeMulti = 1 + shopBonuses.income;
   let bonus = Math.round((8 + level * 2) * incomeMulti);
 
@@ -1725,11 +1905,14 @@ function showLevelEnd() {
   if (cardsEarnedEl) cardsEarnedEl.textContent = cardSummary || 'Nenhuma carta nova.';
 
   const nextBtn = document.querySelector('#ovLevelEnd .overlay-btn');
-  if (level >= MAX_LEVELS) {
+  if (level >= MAX_LEVELS && !endlessMode) {
     nextBtn.innerHTML = '🏆 VITÓRIA!';
     nextBtn.onclick = () => { hideOverlays(); endGame(true); };
   } else {
-    nextBtn.innerHTML = '▶ NÍVEL <span id="nextLevelNum">' + (level + 1) + '</span>';
+    const nextLvl = level + 1;
+    nextBtn.innerHTML = endlessMode && level >= MAX_LEVELS
+      ? '🔁 ONDA ENDLESS ' + nextLvl
+      : '▶ NÍVEL <span id="nextLevelNum">' + nextLvl + '</span>';
     nextBtn.onclick = startNextLevel;
   }
 
@@ -1740,7 +1923,7 @@ function showLevelEnd() {
 function startNextLevel() {
   hideOverlays();
   level++;
-  if (level > MAX_LEVELS) {
+  if (level > MAX_LEVELS && !endlessMode) {
     endGame(true);
     return;
   }
@@ -1922,6 +2105,7 @@ function useAbility(id) {
   if (state !== 'wave') return;
   const ab = ABILITIES[id];
   if (ab.cd > 0) return;
+  missionAbilityUsed = true;
   if (gems < ab.gemCost) {
     addFloat('Precisa ' + ab.gemCost + ' 💎!', canvas.width / 2, canvas.height * 0.42, '#cc88ff');
     return;
@@ -1973,7 +2157,7 @@ function resetAbilities() {
 
 // ── Speed ─────────────────────────────────────────────────────────
 function cycleSpeed() {
-  gameSpeed = gameSpeed === 1 ? 2 : gameSpeed === 2 ? 3 : 1;
+  gameSpeed = gameSpeed === 1 ? 2 : gameSpeed === 2 ? 3 : gameSpeed === 3 ? 4 : 1;
   document.getElementById('btnSpeed').textContent = '⏩ ' + gameSpeed + '×';
 }
 
@@ -2071,6 +2255,9 @@ function getCanvasXY(e) {
 function onCanvasClick(e) {
   if (state === 'gameover' || state === 'start' || state === 'victory') return;
   const { x, y } = getCanvasXY(e);
+  // Verificar drops primeiro
+  const drop = drops.find(d => !d.collected && d.hit(x, y));
+  if (drop) { collectDrop(drop); return; }
   const col = Math.floor(x / CELL);
   const row = Math.floor(y / CELL);
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
@@ -2639,11 +2826,16 @@ class Enemy {
 
   die() {
     this.dead = true;
-    gold  += this.reward;
-    score += this.reward;
+    const rewardMult = goldRushTimer > 0 ? 2 : 1;
+    const finalReward = Math.round(this.reward * rewardMult);
+    gold  += finalReward;
+    score += finalReward;
+    if (rewardMult > 1) addFloat('⚡ +' + finalReward, this.x, this.y - this.sz, '#aaff00');
+    else                addFloat('+' + finalReward, this.x, this.y - this.sz, '#ffd700');
     updateHUD();
+    missionKills++;
+    tryDrop(this.x, this.y, this.typeIdx);
     spawnBurst(this.x, this.y, this.col, this.typeIdx === 4 ? 18 : 8);
-    addFloat('+' + this.reward, this.x, this.y - this.sz, '#ffd700');
     // Esquadrão: divide em 2 mini-drones
     if (this.squadSplit && state === 'wave') {
       enemiesLeft += 1; // compensar: -1 (este) +2 (novos) = net +1
@@ -3638,6 +3830,8 @@ function loop(ts) {
   projectiles.forEach(p => p.update(dt));
   particles.forEach(p => p.update(dt));
   updateAbilities(rawDt);
+  if (goldRushTimer > 0) goldRushTimer = Math.max(0, goldRushTimer - rawDt);
+  drops = drops.filter(d => !d.collected && !d.update(rawDt));
 
   // Cleanup
   enemies     = enemies.filter(e => !e.dead && !e.gone);
@@ -3660,6 +3854,8 @@ function loop(ts) {
   particles.forEach(p => p.draw());
   drawFloatTexts(rawDt);
   drawWaveInfo();
+  drops.forEach(d => d.draw());
+  drawMission();
 
   ctx.restore();
 }
