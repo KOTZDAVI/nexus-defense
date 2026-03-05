@@ -910,6 +910,7 @@
   <div id="startBtnsDeslogado" style="display:flex;flex-direction:column;align-items:center;gap:8px">
     <button class="overlay-btn" onclick="showAuth('login')">🔑 ENTRAR</button>
     <button class="overlay-btn" onclick="showAuth('signup')" style="background:rgba(0,255,136,0.08);border-color:var(--green);color:var(--green)">✚ CRIAR CONTA</button>
+    <button class="overlay-btn" id="guestContinueBtn" onclick="continueGuestGame()" style="display:none;background:rgba(255,170,0,0.10);border-color:rgba(255,170,0,0.5);color:#ffaa00;font-size:0.78rem;padding:9px 20px">▶ CONTINUAR (sem conta)</button>
     <button class="overlay-btn" onclick="startGame()" style="background:rgba(0,212,255,0.04);border-color:rgba(0,212,255,0.25);color:rgba(0,212,255,0.5);font-size:0.7rem;padding:8px 20px">Jogar sem conta</button>
     <button onclick="showRanking()" style="background:none;border:none;color:rgba(255,215,0,0.5);font-family:'Courier New',monospace;font-size:0.65rem;cursor:pointer;letter-spacing:0.05em">🏆 Ver ranking</button>
   </div>
@@ -1796,6 +1797,7 @@ function waveComplete() {
     setTimeout(() => showLevelEnd(), 900);
     return;
   }
+  saveProgressCloud(); // salva após cada onda concluída
   updateHUD();
   state = 'build';
   setBtnWave('▶ INICIAR ONDA ' + (wave + 1), false);
@@ -1874,6 +1876,7 @@ function showLevelEnd() {
   state = 'levelend';
   saveHighScore();
   saveScoreCloud();
+  saveProgressCloud(); // salva nível atual ao exibir tela de conclusão
   const gemsEarned = 2 + Math.floor((level - 1) / 5);
   gems  += gemsEarned;
   score += level * 15;
@@ -3974,31 +3977,64 @@ async function saveCardsCloud() {
   }, { onConflict: 'user_id' });
 }
 
+// ── Progress: localStorage (fallback) ────────────────────────────
+function saveProgressLocal() {
+  try {
+    const uid = supaUser ? supaUser.id : 'guest';
+    localStorage.setItem('nexusProgress_' + uid, JSON.stringify({
+      level, score, gems, gold, lives, wave, ts: Date.now()
+    }));
+  } catch (_) {}
+}
+
+function loadProgressLocal() {
+  try {
+    const uid = supaUser ? supaUser.id : 'guest';
+    const raw = localStorage.getItem('nexusProgress_' + uid);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+
+function clearProgressLocal() {
+  try {
+    const uid = supaUser ? supaUser.id : 'guest';
+    localStorage.removeItem('nexusProgress_' + uid);
+  } catch (_) {}
+}
+
+// ── Progress: nuvem ───────────────────────────────────────────────
 async function saveProgressCloud() {
+  saveProgressLocal(); // sempre salva local como fallback
   if (!supaUser) return;
-  await supa.from('save_data').upsert({
-    user_id:       supaUser.id,
-    current_level: level,
-    current_score: score,
-    current_gems:  gems,
-    current_gold:  gold,
-    current_lives: lives,
-    updated_at:    new Date().toISOString(),
-  }, { onConflict: 'user_id' });
+  try {
+    await supa.from('save_data').upsert({
+      user_id:       supaUser.id,
+      current_level: level,
+      current_score: score,
+      current_gems:  gems,
+      current_gold:  gold,
+      current_lives: lives,
+      updated_at:    new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  } catch (_) {} // falha silenciosa — local já salvou
 }
 
 async function clearProgressCloud() {
-  if (!supaUser) return;
   savedProgress = null;
-  await supa.from('save_data').upsert({
-    user_id:       supaUser.id,
-    current_level: 1,
-    current_score: 0,
-    current_gems:  0,
-    current_gold:  150,
-    current_lives: 10,
-    updated_at:    new Date().toISOString(),
-  }, { onConflict: 'user_id' });
+  clearProgressLocal();
+  if (!supaUser) return;
+  try {
+    await supa.from('save_data').upsert({
+      user_id:       supaUser.id,
+      current_level: 0,
+      current_score: 0,
+      current_gems:  0,
+      current_gold:  150,
+      current_lives: 10,
+      updated_at:    new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  } catch (_) {}
 }
 
 // ── Load cards/stars + progresso from Supabase ───────────────────
@@ -4018,10 +4054,11 @@ async function loadCardsCloud() {
     towerStarLevel = towerStarLevel.map((v, i) => Math.max(v, data.tower_stars[i] || 0));
   saveCardData();
   await saveCardsCloud();
-  // Carrega progresso de run em andamento
-  if (data.current_level > 1) {
+  // Carrega progresso de run em andamento (nuvem)
+  const cloudLevel = data.current_level ?? 0;
+  if (cloudLevel > 0) {
     savedProgress = {
-      level: data.current_level,
+      level: cloudLevel,
       score: data.current_score ?? 0,
       gems:  data.current_gems  ?? 0,
       gold:  data.current_gold  ?? 150,
@@ -4029,6 +4066,11 @@ async function loadCardsCloud() {
     };
   } else {
     savedProgress = null;
+  }
+  // Fallback: localStorage (pode ter save mais recente)
+  const local = loadProgressLocal();
+  if (local && local.level > 0 && (!savedProgress || local.ts > (data.updated_at ? new Date(data.updated_at).getTime() : 0))) {
+    savedProgress = { level: local.level, score: local.score ?? 0, gems: local.gems ?? 0, gold: local.gold ?? 150, lives: local.lives ?? 10 };
   }
 }
 
@@ -4092,8 +4134,9 @@ async function showDashboard() {
   // Botões: CONTINUAR se há progresso, senão JOGAR
   const btnContinue = document.getElementById('dashBtnContinue');
   const btnNew      = document.getElementById('dashBtnNew');
-  if (savedProgress && savedProgress.level > 1) {
-    btnContinue.textContent = '▶ CONTINUAR — Nível ' + savedProgress.level;
+  if (savedProgress && savedProgress.level >= 1) {
+    const waveInfo = savedProgress.wave > 0 ? ' (Onda ' + savedProgress.wave + ')' : '';
+    btnContinue.textContent = '▶ CONTINUAR — Nível ' + savedProgress.level + waveInfo;
     btnContinue.style.display = 'block';
     btnNew.textContent = '↺ NOVO JOGO';
     btnNew.style.background   = 'rgba(0,212,255,0.04)';
@@ -4125,6 +4168,19 @@ function updateStartScreen() {
   document.getElementById('startBtnsDeslogado').style.display = 'flex';
   document.getElementById('userBadge').classList.remove('show');
   loadHighScore();
+  // Mostrar CONTINUAR para guest se houver save local
+  const local = loadProgressLocal();
+  const guestBtn = document.getElementById('guestContinueBtn');
+  if (guestBtn && local && local.level >= 1) {
+    guestBtn.textContent = '▶ CONTINUAR — Nível ' + local.level;
+    guestBtn.style.display = 'block';
+  }
+}
+
+function continueGuestGame() {
+  const local = loadProgressLocal();
+  if (!local) { startGame(); return; }
+  _initGame(local.level, local.score ?? 0, local.gems ?? 0, local.gold ?? 150, local.lives ?? 10);
 }
 
 // ── Save score to Supabase ────────────────────────────────────────
