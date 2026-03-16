@@ -1719,7 +1719,7 @@ function setBtnWave(txt, disabled) {
 
 // ── Tools / tower selection ───────────────────────────────────────
 function selectTool(tid) {
-  if (tid >= 0 && level < TOWER_UNLOCK[tid]) return; // torre ainda bloqueada
+  if (tid >= 0 && level < TOWER_UNLOCK[tid] && !bonusUnlocked.has(tid)) return; // torre ainda bloqueada
   setTool(tid);
   closePopup();
 }
