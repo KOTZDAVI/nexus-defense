@@ -329,12 +329,29 @@
       position: fixed;
       z-index: 500;
       background: linear-gradient(160deg, #0d1e38 0%, #060d1c 100%);
-      border: 1px solid var(--cyan);
-      border-radius: 10px;
-      padding: 9px 13px;
-      max-width: 200px;
+      border: 1.5px solid var(--cyan);
+      border-radius: 12px;
+      padding: 10px 14px 10px;
+      max-width: 215px;
+      min-width: 150px;
       pointer-events: none;
-      box-shadow: 0 0 18px rgba(0,212,255,0.22), 0 4px 16px rgba(0,0,0,0.6);
+      box-shadow: 0 0 22px rgba(0,212,255,0.28), 0 6px 20px rgba(0,0,0,0.7);
+    }
+    /* setinha do balão */
+    #towerTooltip::after {
+      content: '';
+      position: absolute;
+      left: var(--tt-arrow, 50%);
+      transform: translateX(-50%);
+      border: 8px solid transparent;
+    }
+    #towerTooltip.arrow-down::after {
+      bottom: -16px;
+      border-top-color: var(--cyan);
+    }
+    #towerTooltip.arrow-up::after {
+      top: -16px;
+      border-bottom-color: var(--cyan);
     }
     #towerTooltip.show { display: block; }
     #ttName {
@@ -1118,6 +1135,17 @@
   <div class="cards-earned-msg" id="cardsEarnedMsg"></div>
   <div id="cardsList"></div>
   <button class="overlay-btn" onclick="closeCards()">▶ CONTINUAR</button>
+</div>
+
+<!-- Tower tooltip -->
+<div id="towerTooltip">
+  <div id="ttName"></div>
+  <div id="ttStars"></div>
+  <div id="ttLevel"></div>
+  <div id="ttCost"></div>
+  <div id="ttDesc"></div>
+  <div id="ttSpec"></div>
+  <div id="ttCards"></div>
 </div>
 
 <script>
@@ -4388,15 +4416,38 @@ const ttSpec   = document.getElementById('ttSpec');
 const ttCards  = document.getElementById('ttCards');
 
 function _positionTooltip(anchorRect, above = true) {
-  const TW = 210;
+  const TW = 220;
   let left = anchorRect.left + anchorRect.width / 2 - TW / 2;
   if (left < 6) left = 6;
   if (left + TW > window.innerWidth - 6) left = window.innerWidth - TW - 6;
-  const top = above
-    ? anchorRect.top - 150
-    : anchorRect.bottom + 8;
+
+  // Ajusta posição da setinha horizontalmente
+  const arrowLeft = (anchorRect.left + anchorRect.width / 2) - left;
+  const clampedArrow = Math.max(20, Math.min(TW - 20, arrowLeft));
+  ttEl.style.setProperty('--arrow-left', clampedArrow + 'px');
+
+  ttEl.classList.remove('arrow-down', 'arrow-up');
+  let top;
+  if (above) {
+    top = anchorRect.top - 8;
+    ttEl.style.left = left + 'px';
+    ttEl.style.top  = '0px'; // temporário para medir altura
+    ttEl.style.visibility = 'hidden';
+    ttEl.style.display = 'block';
+    const h = ttEl.offsetHeight;
+    ttEl.style.display = '';
+    ttEl.style.visibility = '';
+    top = anchorRect.top - h - 12;
+    ttEl.classList.add('arrow-down');
+  } else {
+    top = anchorRect.bottom + 12;
+    ttEl.classList.add('arrow-up');
+  }
   ttEl.style.left = left + 'px';
   ttEl.style.top  = Math.max(6, top) + 'px';
+
+  // posição da setinha
+  ttEl.style.setProperty('--tt-arrow', clampedArrow + 'px');
 }
 
 function _fillTooltipBase(tid) {
@@ -4496,15 +4547,5 @@ canvas.addEventListener('mousemove', e => {
 });
 canvas.addEventListener('mouseleave', hideTowerTooltip);
 </script>
-<!-- Tower tooltip -->
-<div id="towerTooltip">
-  <div id="ttName"></div>
-  <div id="ttStars"></div>
-  <div id="ttLevel"></div>
-  <div id="ttCost"></div>
-  <div id="ttDesc"></div>
-  <div id="ttSpec"></div>
-  <div id="ttCards"></div>
-</div>
 </body>
 </html>
