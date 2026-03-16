@@ -2175,7 +2175,7 @@ function openPopup(tower) {
     t.name.toUpperCase() + ' — Nv.' + lvl + '/3';
 
   // Stats: dano atual, alcance, cadência, especial
-  const spec = { none:'—', splash:'Splash', chain:'Cadeia', slow:'Lento', burn:'Queima', boost:'Boost +15%', income:'Renda/onda', antiair:'Anti-Aéreo' }[t.spec] || t.spec;
+  const spec = { none:'—', splash:'Explosão AOE ⌀2', chain:'Onda de choque', slow:'Lento', burn:'Queima', boost:'Boost +15%', income:'Renda/onda', antiair:'Anti-Aéreo' }[t.spec] || t.spec;
   document.getElementById('panelStats').innerHTML =
     `DMG: ${tower.dmg().toFixed(0)}  |  Alc: ${tower.range().toFixed(1)}c  |  ${t.rate.toFixed(1)}/s  |  ${spec}`;
 
@@ -3203,7 +3203,7 @@ class Enemy {
 }
 
 class Projectile {
-  constructor(x, y, target, dmg, col, spec) {
+  constructor(x, y, target, dmg, col, spec, chainDepth = 0, hitSet = null) {
     this.x = x; this.y = y;
     this.target = target;
     this.dmg  = dmg;
@@ -3212,6 +3212,8 @@ class Projectile {
     this.spd  = 340;
     this.dead = false;
     this.trail = [];
+    this.chainDepth = chainDepth;
+    this.hitSet = hitSet || new Set([target]);
   }
 
   update(dt) {
@@ -3240,7 +3242,7 @@ class Projectile {
     if (!tgt || tgt.dead || tgt.gone) return;
 
     if (this.spec === 'splash') {
-      const r = CELL * 1.3;
+      const r = CELL * 2.0;
       enemies.forEach(e => {
         if (e.dead || e.gone) return;
         const dx = e.x - this.x, dy = e.y - this.y;
@@ -3251,18 +3253,20 @@ class Projectile {
     } else if (this.spec === 'chain') {
       tgt.hit(this.dmg);
       spawnMuzzle(tgt.x, tgt.y, this.col, 5);
-      // Chain to nearest other enemy
-      let next = null, best = Infinity;
-      enemies.forEach(e => {
-        if (e === tgt || e.dead || e.gone) return;
-        const dx = e.x - tgt.x, dy = e.y - tgt.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < CELL * CELL * 4 && d2 < best) { best = d2; next = e; }
-      });
-      if (next) {
-        const chain = new Projectile(tgt.x, tgt.y, next, this.dmg * 0.65, this.col, 'none');
-        chain.spd = 420;
-        projectiles.push(chain);
+      spawnShockwave(tgt.x, tgt.y, this.col, CELL * 1.0);
+      // Shockwave: encadeia para TODOS os inimigos no raio de 1.5 células
+      if (this.chainDepth < 3 && this.dmg >= 4) {
+        const CHAIN_R = CELL * 1.5;
+        enemies.forEach(e => {
+          if (e === tgt || e.dead || e.gone || this.hitSet.has(e)) return;
+          const dx = e.x - tgt.x, dy = e.y - tgt.y;
+          if (dx * dx + dy * dy <= CHAIN_R * CHAIN_R) {
+            this.hitSet.add(e);
+            const bolt = new Projectile(tgt.x, tgt.y, e, this.dmg * 0.55, this.col, 'chain', this.chainDepth + 1, this.hitSet);
+            bolt.spd = 520;
+            projectiles.push(bolt);
+          }
+        });
       }
 
     } else if (this.spec === 'slow') {
@@ -3306,6 +3310,16 @@ class Projectile {
       ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 10; ctx.shadowColor = this.col; ctx.fill();
 
     } else if (this.spec === 'splash') {
+      // Anel de área de efeito pulsante ao redor do míssil
+      ctx.save();
+      ctx.globalAlpha = 0.12 + 0.06 * Math.sin(Date.now() / 100);
+      ctx.strokeStyle = this.col;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 7]);
+      ctx.shadowBlur = 6; ctx.shadowColor = this.col;
+      ctx.beginPath(); ctx.arc(this.x, this.y, CELL * 2.0, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]); ctx.shadowBlur = 0;
+      ctx.restore();
       // Míssil/Morteiro: foguete com trail de chamas
       if (this.trail.length > 1) {
         for (let i = 1; i < this.trail.length; i++) {
