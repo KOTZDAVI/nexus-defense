@@ -4134,6 +4134,29 @@ async function showDashboard() {
   document.getElementById('dashPlayerName').textContent = supaProfile?.username || '—';
   document.getElementById('dashRankingList').innerHTML = '<div class="overlay-sub">Carregando...</div>';
 
+  // Configura botões CONTINUAR/JOGAR imediatamente (não depende do ranking)
+  const btnContinue = document.getElementById('dashBtnContinue');
+  const btnNew      = document.getElementById('dashBtnNew');
+  if (savedProgress && savedProgress.level >= 1) {
+    const waveInfo = savedProgress.wave > 0 ? ' (Onda ' + savedProgress.wave + ')' : '';
+    btnContinue.textContent = '▶ CONTINUAR — Nível ' + savedProgress.level + waveInfo;
+    btnContinue.style.display = 'block';
+    btnNew.textContent = '↺ NOVO JOGO';
+    btnNew.style.background   = 'rgba(0,212,255,0.04)';
+    btnNew.style.borderColor  = 'rgba(0,212,255,0.3)';
+    btnNew.style.color        = 'rgba(0,212,255,0.55)';
+    btnNew.style.fontSize     = '0.75rem';
+    btnNew.style.padding      = '9px 20px';
+  } else {
+    btnContinue.style.display = 'none';
+    btnNew.textContent = '▶ JOGAR';
+    btnNew.style.background  = '';
+    btnNew.style.borderColor = '';
+    btnNew.style.color       = '';
+    btnNew.style.fontSize    = '';
+    btnNew.style.padding     = '';
+  }
+
   const { data, error } = await supa
     .from('scores')
     .select('user_id, high_score, max_level, total_gems, profiles(username)')
@@ -4182,28 +4205,6 @@ async function showDashboard() {
       ${rankRowHtml(myRow, myPos - 1, true).replace(`${myPos}°`, `${myPos}°`)}`;
   }
 
-  // Botões: CONTINUAR se há progresso, senão JOGAR
-  const btnContinue = document.getElementById('dashBtnContinue');
-  const btnNew      = document.getElementById('dashBtnNew');
-  if (savedProgress && savedProgress.level >= 1) {
-    const waveInfo = savedProgress.wave > 0 ? ' (Onda ' + savedProgress.wave + ')' : '';
-    btnContinue.textContent = '▶ CONTINUAR — Nível ' + savedProgress.level + waveInfo;
-    btnContinue.style.display = 'block';
-    btnNew.textContent = '↺ NOVO JOGO';
-    btnNew.style.background   = 'rgba(0,212,255,0.04)';
-    btnNew.style.borderColor  = 'rgba(0,212,255,0.3)';
-    btnNew.style.color        = 'rgba(0,212,255,0.55)';
-    btnNew.style.fontSize     = '0.75rem';
-    btnNew.style.padding      = '9px 20px';
-  } else {
-    btnContinue.style.display = 'none';
-    btnNew.textContent = '▶ JOGAR';
-    btnNew.style.background  = '';
-    btnNew.style.borderColor = '';
-    btnNew.style.color       = '';
-    btnNew.style.fontSize    = '';
-    btnNew.style.padding     = '';
-  }
 }
 
 // ── Update start screen based on login state ──────────────────────
