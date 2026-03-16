@@ -361,6 +361,39 @@
       color: var(--purple);
       font-weight: bold;
       letter-spacing: 0.04em;
+      white-space: pre-line;
+    }
+    #ttStars {
+      font-size: 0.78rem;
+      letter-spacing: 2px;
+      margin-bottom: 2px;
+    }
+    #ttLevel {
+      font-size: 0.65rem;
+      color: rgba(0,212,255,0.6);
+      margin-bottom: 4px;
+    }
+    #ttCards {
+      margin-top: 6px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 0.65rem;
+      font-weight: bold;
+    }
+    #ttCards.can-upgrade {
+      background: rgba(0,255,136,0.12);
+      border: 1px solid rgba(0,255,136,0.4);
+      color: #00ff88;
+    }
+    #ttCards.need-more {
+      background: rgba(0,212,255,0.07);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: rgba(0,212,255,0.6);
+    }
+    #ttCards.maxed {
+      background: rgba(255,215,0,0.10);
+      border: 1px solid rgba(255,215,0,0.35);
+      color: #ffd700;
     }
 
     /* ─── Abilities bar ─── */
@@ -4334,48 +4367,97 @@ renderTowerBarIcons();
 
 // ── Tower Tooltip ─────────────────────────────────────────────────
 const TOWER_TOOLTIP_INFO = [
-  { desc: 'Dispara rajadas rápidas de energia. Ideal para conter múltiplos inimigos leves.',              spec: '⚡ Dano direto rápido' },
-  { desc: 'Lança mísseis que explodem ao impactar, causando dano em área de 2 células de raio.',         spec: '💥 Explosão AOE — mostra raio ao voar' },
-  { desc: 'Descarga elétrica que salta para todos os inimigos próximos em cascata de até 3 níveis.',     spec: '🌩 Onda de choque em cadeia' },
-  { desc: 'Projéteis de gelo que reduzem drasticamente a velocidade do alvo por 2 segundos.',            spec: '❄ Congela inimigos (-58% velocidade)' },
-  { desc: 'Franco-atirador de altíssimo dano e alcance máximo. Cadência lenta mas certeira.',            spec: '🎯 Maior alcance do jogo' },
-  { desc: 'Canhão de plasma que incendeia o alvo, causando dano contínuo por 3 segundos.',              spec: '🔥 Queima — dano ao longo do tempo' },
-  { desc: 'Artilharia pesada de longo alcance com explosão de grande área. Muito lento.',                spec: '💣 AOE máximo — 2 células de raio' },
-  { desc: 'Cristal amplificador que aumenta o dano e alcance de todas as torres vizinhas em 15%.',      spec: '🔶 Boost +15% dmg/alcance nas vizinhas' },
-  { desc: 'Nódulo econômico que gera ouro extra ao fim de cada onda. Não ataca.',                       spec: '💰 Renda passiva por onda' },
-  { desc: 'Única torre capaz de atingir inimigos voadores. Alta cadência de disparo.',                  spec: '✈ Anti-aéreo exclusivo' },
+  { desc: 'Dispara rajadas rápidas de energia. Ideal para conter múltiplos inimigos leves.',           spec: '⚡ Dano direto rápido' },
+  { desc: 'Lança mísseis que explodem ao impactar, causando dano em área de 2 células de raio.',      spec: '💥 Explosão AOE — mostra raio ao voar' },
+  { desc: 'Descarga elétrica que salta para todos os inimigos próximos em cascata de até 3 níveis.',  spec: '🌩 Onda de choque em cadeia' },
+  { desc: 'Projéteis de gelo que reduzem drasticamente a velocidade do alvo por 2 segundos.',         spec: '❄ Congela inimigos (-58% velocidade)' },
+  { desc: 'Franco-atirador de altíssimo dano e alcance máximo. Cadência lenta mas certeira.',         spec: '🎯 Maior alcance do jogo' },
+  { desc: 'Canhão de plasma que incendeia o alvo, causando dano contínuo por 3 segundos.',            spec: '🔥 Queima — dano ao longo do tempo' },
+  { desc: 'Artilharia pesada de longo alcance com explosão de grande área. Muito lento.',              spec: '💣 AOE máximo — 2 células de raio' },
+  { desc: 'Cristal amplificador que aumenta o dano e alcance de todas as torres vizinhas em 15%.',    spec: '🔶 Boost +15% dmg/alcance nas vizinhas' },
+  { desc: 'Nódulo econômico que gera ouro extra ao fim de cada onda. Não ataca.',                     spec: '💰 Renda passiva por onda' },
+  { desc: 'Única torre capaz de atingir inimigos voadores. Alta cadência de disparo.',                spec: '✈ Anti-aéreo exclusivo' },
 ];
 
-const ttEl   = document.getElementById('towerTooltip');
-const ttName = document.getElementById('ttName');
-const ttCost = document.getElementById('ttCost');
-const ttDesc = document.getElementById('ttDesc');
-const ttSpec = document.getElementById('ttSpec');
+const ttEl     = document.getElementById('towerTooltip');
+const ttName   = document.getElementById('ttName');
+const ttStars  = document.getElementById('ttStars');
+const ttLevel  = document.getElementById('ttLevel');
+const ttCost   = document.getElementById('ttCost');
+const ttDesc   = document.getElementById('ttDesc');
+const ttSpec   = document.getElementById('ttSpec');
+const ttCards  = document.getElementById('ttCards');
 
-function showTowerTooltip(btn, tid) {
-  if (tid < 0 || tid >= T_DEF.length) return;
+function _positionTooltip(anchorRect, above = true) {
+  const TW = 210;
+  let left = anchorRect.left + anchorRect.width / 2 - TW / 2;
+  if (left < 6) left = 6;
+  if (left + TW > window.innerWidth - 6) left = window.innerWidth - TW - 6;
+  const top = above
+    ? anchorRect.top - 150
+    : anchorRect.bottom + 8;
+  ttEl.style.left = left + 'px';
+  ttEl.style.top  = Math.max(6, top) + 'px';
+}
+
+function _fillTooltipBase(tid) {
   const d  = T_DEF[tid];
   const ti = TOWER_TOOLTIP_INFO[tid];
   ttName.textContent = d.name.toUpperCase();
   ttName.style.color = d.col;
   ttName.style.textShadow = `0 0 8px ${d.col}88`;
-  ttCost.textContent = `💰 ${d.cost}  •  Alcance ${d.range}  •  ${d.rate > 0 ? d.rate.toFixed(2) + ' tiro/s' : 'Passiva'}`;
   ttDesc.textContent = ti.desc;
   ttSpec.textContent = ti.spec;
+}
 
+function _fillCardsInfo(tid) {
+  const stars    = towerStarLevel[tid];
+  const cards    = towerCards[tid];
+  const maxStars = 5;
+  // Stars display
+  ttStars.innerHTML = `<span style="color:#ffd700">${'★'.repeat(stars)}</span><span style="color:rgba(255,215,0,0.28)">${'★'.repeat(maxStars - stars)}</span>`;
+  ttStars.style.display = '';
+  // Cards info
+  if (stars >= maxStars) {
+    ttCards.textContent = '⭐ Estrelas máximas!';
+    ttCards.className   = 'maxed';
+  } else {
+    const nextCost = CARD_COST[stars];
+    if (cards >= nextCost) {
+      ttCards.textContent = `🃏 ${cards}/${nextCost} cartas — PODE UPAR ★${stars + 1}!`;
+      ttCards.className   = 'can-upgrade';
+    } else {
+      ttCards.textContent = `🃏 ${cards}/${nextCost} cartas para ★${stars + 1}`;
+      ttCards.className   = 'need-more';
+    }
+  }
+  ttCards.style.display = '';
+}
+
+// Tooltip para botões da barra (torre não colocada ainda)
+function showTowerTooltip(btn, tid) {
+  if (tid < 0 || tid >= T_DEF.length) return;
+  const d = T_DEF[tid];
+  _fillTooltipBase(tid);
+  ttCost.textContent = `💰 ${d.cost}  •  Alcance ${d.range}  •  ${d.rate > 0 ? d.rate.toFixed(2) + ' tiro/s' : 'Passiva'}`;
+  ttLevel.style.display  = 'none';
+  ttStars.style.display  = 'none';
+  ttCards.style.display  = 'none';
   const rect = btn.getBoundingClientRect();
-  const tt   = ttEl.getBoundingClientRect();
-  // Posiciona acima do botão, centralizado
-  let left = rect.left + rect.width / 2 - 100;
-  let top  = rect.top - 10;
-  // Garante que não sai da tela
-  if (left < 6) left = 6;
-  if (left + 200 > window.innerWidth - 6) left = window.innerWidth - 206;
-  if (top - 120 < 6) top = rect.bottom + 10; // mostra abaixo se não couber acima
-  else top = rect.top - 130;
+  _positionTooltip(rect, rect.top > 160);
+  ttEl.classList.add('show');
+}
 
-  ttEl.style.left = left + 'px';
-  ttEl.style.top  = top  + 'px';
+// Tooltip para torres colocadas no mapa (hover no canvas)
+function showPlacedTowerTooltip(tower, screenRect) {
+  const tid  = tower.typeIdx;
+  const lvl  = tower.level;
+  _fillTooltipBase(tid);
+  ttLevel.textContent    = `Nível ${lvl}/3  |  DMG ${tower.dmg().toFixed(0)}  |  Alc ${tower.range().toFixed(1)}`;
+  ttLevel.style.display  = '';
+  ttCost.textContent     = `Upgrades restantes: ${3 - lvl}  •  Venda: ${tower.sellValue()}💰`;
+  _fillCardsInfo(tid);
+  _positionTooltip(screenRect, screenRect.top > 160);
   ttEl.classList.add('show');
 }
 
@@ -4383,19 +4465,47 @@ function hideTowerTooltip() {
   ttEl.classList.remove('show');
 }
 
+// Hover nos botões da barra
 document.querySelectorAll('.tower-btn[data-tid]').forEach(btn => {
   const tid = parseInt(btn.dataset.tid);
   btn.addEventListener('mouseenter', () => showTowerTooltip(btn, tid));
   btn.addEventListener('mouseleave', hideTowerTooltip);
-  btn.addEventListener('touchstart', hideTowerTooltip, { passive: true });
+  btn.addEventListener('touchstart',  hideTowerTooltip, { passive: true });
 });
+
+// Hover no canvas — torres colocadas no mapa
+canvas.addEventListener('mousemove', e => {
+  if (state === 'start' || state === 'gameover' || state === 'victory') { hideTowerTooltip(); return; }
+  const { x, y } = getCanvasXY(e);
+  const t = towers.find(tw => {
+    const dx = tw.cx - x, dy = tw.cy - y;
+    return dx*dx + dy*dy <= (CELL * 0.62) * (CELL * 0.62);
+  });
+  if (!t) { hideTowerTooltip(); return; }
+  const rect  = canvas.getBoundingClientRect();
+  const scaleX = rect.width  / canvas.width;
+  const scaleY = rect.height / canvas.height;
+  const sr = {
+    left:   rect.left + (t.cx - CELL * 0.5) * scaleX,
+    top:    rect.top  + (t.cy - CELL * 0.5) * scaleY,
+    width:  CELL * scaleX,
+    height: CELL * scaleY,
+    bottom: rect.top + (t.cy + CELL * 0.5) * scaleY,
+    right:  rect.left + (t.cx + CELL * 0.5) * scaleX,
+  };
+  showPlacedTowerTooltip(t, sr);
+});
+canvas.addEventListener('mouseleave', hideTowerTooltip);
 </script>
 <!-- Tower tooltip -->
 <div id="towerTooltip">
   <div id="ttName"></div>
+  <div id="ttStars"></div>
+  <div id="ttLevel"></div>
   <div id="ttCost"></div>
   <div id="ttDesc"></div>
   <div id="ttSpec"></div>
+  <div id="ttCards"></div>
 </div>
 </body>
 </html>
