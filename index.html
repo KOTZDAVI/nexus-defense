@@ -323,6 +323,46 @@
     }
     #btnPanelClose:hover { background: rgba(255,51,85,0.18); }
 
+    /* ─── Tower tooltip ─── */
+    #towerTooltip {
+      display: none;
+      position: fixed;
+      z-index: 500;
+      background: linear-gradient(160deg, #0d1e38 0%, #060d1c 100%);
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      padding: 9px 13px;
+      max-width: 200px;
+      pointer-events: none;
+      box-shadow: 0 0 18px rgba(0,212,255,0.22), 0 4px 16px rgba(0,0,0,0.6);
+    }
+    #towerTooltip.show { display: block; }
+    #ttName {
+      font-size: 0.82rem;
+      font-weight: bold;
+      color: var(--cyan);
+      letter-spacing: 0.06em;
+      text-shadow: 0 0 8px rgba(0,212,255,0.5);
+      margin-bottom: 4px;
+    }
+    #ttCost {
+      font-size: 0.68rem;
+      color: var(--gold);
+      margin-bottom: 5px;
+    }
+    #ttDesc {
+      font-size: 0.65rem;
+      color: rgba(200,230,255,0.75);
+      line-height: 1.5;
+    }
+    #ttSpec {
+      margin-top: 5px;
+      font-size: 0.62rem;
+      color: var(--purple);
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+
     /* ─── Abilities bar ─── */
     #abilitiesBar {
       width: 100%;
@@ -4291,6 +4331,71 @@ renderTowerBarIcons();
   }
   updateStartScreen();
 })();
+
+// ── Tower Tooltip ─────────────────────────────────────────────────
+const TOWER_TOOLTIP_INFO = [
+  { desc: 'Dispara rajadas rápidas de energia. Ideal para conter múltiplos inimigos leves.',              spec: '⚡ Dano direto rápido' },
+  { desc: 'Lança mísseis que explodem ao impactar, causando dano em área de 2 células de raio.',         spec: '💥 Explosão AOE — mostra raio ao voar' },
+  { desc: 'Descarga elétrica que salta para todos os inimigos próximos em cascata de até 3 níveis.',     spec: '🌩 Onda de choque em cadeia' },
+  { desc: 'Projéteis de gelo que reduzem drasticamente a velocidade do alvo por 2 segundos.',            spec: '❄ Congela inimigos (-58% velocidade)' },
+  { desc: 'Franco-atirador de altíssimo dano e alcance máximo. Cadência lenta mas certeira.',            spec: '🎯 Maior alcance do jogo' },
+  { desc: 'Canhão de plasma que incendeia o alvo, causando dano contínuo por 3 segundos.',              spec: '🔥 Queima — dano ao longo do tempo' },
+  { desc: 'Artilharia pesada de longo alcance com explosão de grande área. Muito lento.',                spec: '💣 AOE máximo — 2 células de raio' },
+  { desc: 'Cristal amplificador que aumenta o dano e alcance de todas as torres vizinhas em 15%.',      spec: '🔶 Boost +15% dmg/alcance nas vizinhas' },
+  { desc: 'Nódulo econômico que gera ouro extra ao fim de cada onda. Não ataca.',                       spec: '💰 Renda passiva por onda' },
+  { desc: 'Única torre capaz de atingir inimigos voadores. Alta cadência de disparo.',                  spec: '✈ Anti-aéreo exclusivo' },
+];
+
+const ttEl   = document.getElementById('towerTooltip');
+const ttName = document.getElementById('ttName');
+const ttCost = document.getElementById('ttCost');
+const ttDesc = document.getElementById('ttDesc');
+const ttSpec = document.getElementById('ttSpec');
+
+function showTowerTooltip(btn, tid) {
+  if (tid < 0 || tid >= T_DEF.length) return;
+  const d  = T_DEF[tid];
+  const ti = TOWER_TOOLTIP_INFO[tid];
+  ttName.textContent = d.name.toUpperCase();
+  ttName.style.color = d.col;
+  ttName.style.textShadow = `0 0 8px ${d.col}88`;
+  ttCost.textContent = `💰 ${d.cost}  •  Alcance ${d.range}  •  ${d.rate > 0 ? d.rate.toFixed(2) + ' tiro/s' : 'Passiva'}`;
+  ttDesc.textContent = ti.desc;
+  ttSpec.textContent = ti.spec;
+
+  const rect = btn.getBoundingClientRect();
+  const tt   = ttEl.getBoundingClientRect();
+  // Posiciona acima do botão, centralizado
+  let left = rect.left + rect.width / 2 - 100;
+  let top  = rect.top - 10;
+  // Garante que não sai da tela
+  if (left < 6) left = 6;
+  if (left + 200 > window.innerWidth - 6) left = window.innerWidth - 206;
+  if (top - 120 < 6) top = rect.bottom + 10; // mostra abaixo se não couber acima
+  else top = rect.top - 130;
+
+  ttEl.style.left = left + 'px';
+  ttEl.style.top  = top  + 'px';
+  ttEl.classList.add('show');
+}
+
+function hideTowerTooltip() {
+  ttEl.classList.remove('show');
+}
+
+document.querySelectorAll('.tower-btn[data-tid]').forEach(btn => {
+  const tid = parseInt(btn.dataset.tid);
+  btn.addEventListener('mouseenter', () => showTowerTooltip(btn, tid));
+  btn.addEventListener('mouseleave', hideTowerTooltip);
+  btn.addEventListener('touchstart', hideTowerTooltip, { passive: true });
+});
 </script>
+<!-- Tower tooltip -->
+<div id="towerTooltip">
+  <div id="ttName"></div>
+  <div id="ttCost"></div>
+  <div id="ttDesc"></div>
+  <div id="ttSpec"></div>
+</div>
 </body>
 </html>
