@@ -107,10 +107,11 @@
       border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 3px;
       padding: 4px 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
+      overflow-x: hidden;
       flex-shrink: 0;
     }
 
@@ -121,6 +122,7 @@
       align-items: center;
       gap: 1px;
       padding: 4px 5px;
+      min-width: 54px;
       background: rgba(0,212,255,0.06);
       border: 1px solid rgba(0,212,255,0.18);
       border-radius: 8px;
@@ -797,60 +799,60 @@
     <button class="tower-btn" data-tid="0" onclick="selectTool(0)">
       <canvas class="t-icon-canvas" data-tid="0" width="72" height="72"></canvas>
       <span class="t-cost">50💰</span>
-      <span class="t-rate">Laser</span>
+      <span class="t-rate">Laser · Rápido</span>
     </button>
     <button class="tower-btn" data-tid="1" onclick="selectTool(1)">
       <canvas class="t-icon-canvas" data-tid="1" width="72" height="72"></canvas>
       <span class="t-cost">80💰</span>
-      <span class="t-rate">Míssil</span>
+      <span class="t-rate">Míssil · AOE</span>
       <span class="t-lock">🔒 Nv.3</span>
     </button>
     <button class="tower-btn" data-tid="2" onclick="selectTool(2)">
       <canvas class="t-icon-canvas" data-tid="2" width="72" height="72"></canvas>
       <span class="t-cost">100💰</span>
-      <span class="t-rate">Tesla</span>
+      <span class="t-rate">Tesla · Choque</span>
       <span class="t-lock">🔒 Nv.6</span>
     </button>
     <button class="tower-btn" data-tid="3" onclick="selectTool(3)">
       <canvas class="t-icon-canvas" data-tid="3" width="72" height="72"></canvas>
       <span class="t-cost">70💰</span>
-      <span class="t-rate">Cryo</span>
+      <span class="t-rate">Cryo · Gela</span>
       <span class="t-lock">🔒 Nv.2</span>
     </button>
     <button class="tower-btn" data-tid="4" onclick="selectTool(4)">
       <canvas class="t-icon-canvas" data-tid="4" width="72" height="72"></canvas>
       <span class="t-cost">120💰</span>
-      <span class="t-rate">Sniper</span>
+      <span class="t-rate">Sniper · Long.</span>
       <span class="t-lock">🔒 Nv.9</span>
     </button>
     <button class="tower-btn" data-tid="5" onclick="selectTool(5)">
       <canvas class="t-icon-canvas" data-tid="5" width="72" height="72"></canvas>
       <span class="t-cost">90💰</span>
-      <span class="t-rate">Plasma</span>
+      <span class="t-rate">Plasma · Queima</span>
       <span class="t-lock">🔒 Nv.12</span>
     </button>
     <button class="tower-btn" data-tid="6" onclick="selectTool(6)">
       <canvas class="t-icon-canvas" data-tid="6" width="72" height="72"></canvas>
       <span class="t-cost">160💰</span>
-      <span class="t-rate">Morteiro</span>
+      <span class="t-rate">Morteiro · AOE</span>
       <span class="t-lock">🔒 Nv.8</span>
     </button>
     <button class="tower-btn" data-tid="7" onclick="selectTool(7)">
       <canvas class="t-icon-canvas" data-tid="7" width="72" height="72"></canvas>
       <span class="t-cost">120💰</span>
-      <span class="t-rate">Amplif.</span>
+      <span class="t-rate">Amplif. · Boost</span>
       <span class="t-lock">🔒 Nv.5</span>
     </button>
     <button class="tower-btn" data-tid="8" onclick="selectTool(8)">
       <canvas class="t-icon-canvas" data-tid="8" width="72" height="72"></canvas>
       <span class="t-cost">90💰</span>
-      <span class="t-rate">Nódulo</span>
+      <span class="t-rate">Nódulo · Renda</span>
       <span class="t-lock">🔒 Nv.4</span>
     </button>
     <button class="tower-btn" data-tid="9" onclick="selectTool(9)">
       <canvas class="t-icon-canvas" data-tid="9" width="72" height="72"></canvas>
       <span class="t-cost">130💰</span>
-      <span class="t-rate">Anti-Aér.</span>
+      <span class="t-rate">Anti-Aér. · Fly</span>
       <span class="t-lock">🔒 Nv.7</span>
     </button>
   </div>
@@ -1023,6 +1025,7 @@
   <div class="overlay-stats" id="levelEndStats"></div>
   <div class="gems-earned" id="levelEndGems">+2 💎</div>
   <div id="levelEndCardsMsg" class="cards-earned-msg"></div>
+  <div id="levelEndBonusMsg" style="display:none;background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.4);border-radius:8px;padding:8px 14px;font-size:0.72rem;color:#ffd700;letter-spacing:0.04em;text-align:center;max-width:300px;"></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
     <button class="overlay-btn-secondary" onclick="openShop()">🛒 LOJA</button>
     <button class="overlay-btn-secondary" onclick="openCards()" style="border-color:rgba(255,215,0,0.5);color:rgba(255,215,0,0.85)">🃏 CARTAS</button>
@@ -1246,6 +1249,8 @@ let selectedTool;   // -1 = select mode, 0-3 = tower type
 let activeTower;    // tower currently shown in popup
 let waveActive, enemiesLeft;
 let livesAtWaveStart = 0;  // para bônus de onda perfeita
+let livesLostThisLevel = 0; // contador de vidas perdidas no nível atual
+let bonusUnlocked = new Set(); // torres desbloqueadas por bônus de nível perfeito
 let frameId = null;
 
 // ── Drops ────────────────────────────────────────────────────────
@@ -1643,6 +1648,7 @@ function continueGame() {
 function _initGame(lvl, sc, gm, gd, lv) {
   hideOverlays();
   level = lvl; score = sc; gems = gm; gold = gd; lives = lv;
+  bonusUnlocked = new Set(); livesLostThisLevel = 0;
   wave = 0; gameSpeed = 1;
   shopBonuses = { damage: 0, range: 0, income: 0, _purchases: {} };
   towers = []; enemies = []; projectiles = []; particles = []; floatTexts = []; drops = [];
@@ -1693,7 +1699,7 @@ function refreshTowerUnlocks() {
   document.querySelectorAll('.tower-btn[data-tid]').forEach(btn => {
     const tid = parseInt(btn.dataset.tid);
     if (tid < 0) return;
-    const unlocked = level >= TOWER_UNLOCK[tid];
+    const unlocked = level >= TOWER_UNLOCK[tid] || bonusUnlocked.has(tid);
     btn.classList.toggle('locked', !unlocked);
     btn.disabled = !unlocked;
   });
@@ -1920,6 +1926,28 @@ function showLevelEnd() {
   }
 
   updateHUD();
+
+  // Bônus por nível perfeito — nenhuma vida perdida
+  const bonusEl = document.getElementById('levelEndBonusMsg');
+  if (livesLostThisLevel === 0) {
+    const stillLocked = [];
+    for (let i = 0; i < T_DEF.length; i++) {
+      if (TOWER_UNLOCK[i] > level + 1 && !bonusUnlocked.has(i)) stillLocked.push(i);
+    }
+    if (stillLocked.length > 0) {
+      const pick = stillLocked[Math.floor(Math.random() * stillLocked.length)];
+      bonusUnlocked.add(pick);
+      refreshTowerUnlocks();
+      bonusEl.textContent = '⭐ NÍVEL PERFEITO! Torre bônus desbloqueada: 🔓 ' + T_DEF[pick].name.toUpperCase() + '!';
+      bonusEl.style.display = 'block';
+    } else {
+      bonusEl.textContent = '⭐ NÍVEL PERFEITO! Todas as torres já desbloqueadas!';
+      bonusEl.style.display = 'block';
+    }
+  } else {
+    bonusEl.style.display = 'none';
+  }
+
   document.getElementById('ovLevelEnd').classList.add('show');
 }
 
@@ -1965,6 +1993,7 @@ function startNextLevel() {
   setTool(-1);
   refreshTowerUnlocks();
   lives = 10;
+  livesLostThisLevel = 0;
   updateHUD();
   state = 'build';
   setBtnWave('▶ INICIAR ONDA 1', false);
@@ -2782,6 +2811,7 @@ class Enemy {
       this.pIdx = (1 - dist / this._flyDist) * (pathPts.length - 1);
       if (mv >= dist) {
         this.gone = true;
+        livesLostThisLevel++;
         lives = Math.max(0, lives - 1);
         addShake(14);
         if (lives <= 0) { lives = 0; updateHUD(); levelFailed(); }
@@ -2800,6 +2830,7 @@ class Enemy {
       const ni = Math.floor(this.pIdx) + 1;
       if (ni >= pathPts.length) {
         this.gone = true;
+        livesLostThisLevel++;
         lives = Math.max(0, lives - 1);
         addShake(14);
         if (lives <= 0) { lives = 0; updateHUD(); levelFailed(); }
