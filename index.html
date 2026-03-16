@@ -4202,6 +4202,7 @@ async function showDashboard() {
   const { data, error } = await supa
     .from('scores')
     .select('user_id, high_score, max_level, total_gems, profiles(username)')
+    .order('max_level',  { ascending: false })
     .order('high_score', { ascending: false });
 
   if (error || !data || data.length === 0) {
@@ -4223,30 +4224,27 @@ async function showDashboard() {
   document.getElementById('dashMaxLevel').textContent   = myRow?.max_level  ?? 1;
   document.getElementById('dashTotalGems').textContent  = myRow?.total_gems ?? 0;
 
-  // Renderizar lista de ranking (top 10)
-  const medals = ['gold', 'silver', 'bronze'];
-  document.getElementById('dashRankingList').innerHTML = data.slice(0, 10).map((row, i) => {
-    const name   = row.profiles?.username || 'Desconhecido';
-    const isMe   = row.user_id === supaUser?.id;
-    const posClass = medals[i] || '';
+  const rankRowHtml = (row, i, isMe) => {
+    const name     = row.profiles?.username || 'Desconhecido';
+    const posClass = ['gold','silver','bronze'][i] || '';
     return `<div class="rank-row ${isMe ? 'me' : ''}">
       <span class="rank-pos ${posClass}">${i + 1}°</span>
       <span class="rank-name">${name}${isMe ? ' 👈' : ''}</span>
-      <span class="rank-lvl">Nv.${row.max_level}</span>
+      <span class="rank-lvl" style="color:var(--cyan);font-weight:bold">Nv.${row.max_level}</span>
       <span class="rank-score">${row.high_score}pts</span>
     </div>`;
-  }).join('');
+  };
+
+  // Renderizar lista de ranking (top 10) — ordenado por nível, desempate por score
+  document.getElementById('dashRankingList').innerHTML =
+    `<div style="font-size:0.55rem;color:rgba(0,212,255,0.35);text-align:center;letter-spacing:0.08em;padding-bottom:4px">RANKING — NÍVEL ↓ · SCORE ↓</div>` +
+    data.slice(0, 10).map((row, i) => rankRowHtml(row, i, row.user_id === supaUser?.id)).join('');
 
   // Se jogador estiver fora do top 10, exibir sua posição ao final
   if (myPos && myPos > 10) {
     document.getElementById('dashRankingList').innerHTML += `
       <div style="text-align:center;font-size:0.6rem;color:rgba(0,212,255,0.35);padding:4px 0">• • •</div>
-      <div class="rank-row me">
-        <span class="rank-pos">${myPos}°</span>
-        <span class="rank-name">${supaProfile.username} 👈</span>
-        <span class="rank-lvl">Nv.${myRow.max_level}</span>
-        <span class="rank-score">${myRow.high_score}pts</span>
-      </div>`;
+      ${rankRowHtml(myRow, myPos - 1, true).replace(`${myPos}°`, `${myPos}°`)}`;
   }
 
   // Botões: CONTINUAR se há progresso, senão JOGAR
@@ -4324,6 +4322,7 @@ async function showRanking() {
   const { data, error } = await supa
     .from('scores')
     .select('high_score, max_level, profiles(username)')
+    .order('max_level',  { ascending: false })
     .order('high_score', { ascending: false })
     .limit(10);
 
