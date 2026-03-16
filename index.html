@@ -3424,20 +3424,16 @@ function spawnShockwave(x, y, col, maxR) {
   shockwaves.push({ x, y, col, r: 5, maxR: maxR || CELL * 2.2, life: 1 });
 }
 
-const STAR_COLORS = ['#00d4ff','#00d4ff','#00d4ff','#bb44ff','#44aaff','#ffffff','#00ff88'];
-
 function initBgStars() {
   bgStars = [];
-  for (let i = 0; i < 55; i++) {
+  for (let i = 0; i < 40; i++) {
     bgStars.push({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      r: 0.3 + Math.random() * 1.6,
-      spd: 3 + Math.random() * 14,
-      alpha: 0.06 + Math.random() * 0.20,
+      r: 0.4 + Math.random() * 1.3,
+      spd: 5 + Math.random() * 12,
+      alpha: 0.07 + Math.random() * 0.18,
       flicker: Math.random() * Math.PI * 2,
-      col: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
-      glow: Math.random() < 0.25, // 25% of stars have glow
     });
   }
 }
@@ -3446,18 +3442,13 @@ function drawBgStars(dt) {
   if (bgStars.length === 0) initBgStars();
   for (const s of bgStars) {
     s.x -= s.spd * dt;
-    s.flicker += dt * (2.2 + s.spd * 0.2);
+    s.flicker += dt * (2.5 + s.spd * 0.25);
     if (s.x < -2) { s.x = canvas.width + 2; s.y = Math.random() * canvas.height; }
-    const a = s.alpha * (0.55 + 0.45 * Math.sin(s.flicker));
-    ctx.globalAlpha = a;
-    if (s.glow) {
-      ctx.shadowBlur = s.r * 4; ctx.shadowColor = s.col;
-    }
-    ctx.fillStyle = s.col;
+    ctx.globalAlpha = s.alpha * (0.6 + 0.4 * Math.sin(s.flicker));
+    ctx.fillStyle = '#00d4ff';
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
   ctx.globalAlpha = 1;
 }
@@ -3695,29 +3686,11 @@ let bgStars = [];
 let goldPrev = 0;
 
 function drawBackground() {
-  // Deep space gradient base
-  const bgG = ctx.createRadialGradient(canvas.width*0.5, canvas.height*0.5, 0, canvas.width*0.5, canvas.height*0.5, canvas.width*0.8);
-  bgG.addColorStop(0, '#070d1c');
-  bgG.addColorStop(1, '#030710');
-  ctx.fillStyle = bgG;
+  ctx.fillStyle = '#06080f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Path cells — deep abyss/corridor
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (map[r][c] === 0) {
-        ctx.fillStyle = '#08152a';
-        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
-        // Inner edge glow
-        ctx.strokeStyle = 'rgba(0,140,220,0.10)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(c*CELL+0.5, r*CELL+0.5, CELL-1, CELL-1);
-      }
-    }
-  }
-
   // Grid lines
-  ctx.strokeStyle = 'rgba(0,212,255,0.055)';
+  ctx.strokeStyle = 'rgba(0,212,255,0.04)';
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,canvas.height); ctx.stroke();
@@ -3726,45 +3699,19 @@ function drawBackground() {
     ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(canvas.width,r*CELL); ctx.stroke();
   }
 
-  // Circuit board accents on buildable cells
-  const cs = Math.max(3, CELL * 0.10);
+  // Path surface
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (map[r][c] !== 1) continue;
-      const x0 = c*CELL, y0 = r*CELL;
-      // L-bracket at each corner
-      ctx.strokeStyle = 'rgba(0,212,255,0.09)';
-      ctx.lineWidth = 1;
-      // top-left
-      ctx.beginPath(); ctx.moveTo(x0+cs,y0); ctx.lineTo(x0,y0); ctx.lineTo(x0,y0+cs); ctx.stroke();
-      // top-right
-      ctx.beginPath(); ctx.moveTo(x0+CELL-cs,y0); ctx.lineTo(x0+CELL,y0); ctx.lineTo(x0+CELL,y0+cs); ctx.stroke();
-      // bottom-left
-      ctx.beginPath(); ctx.moveTo(x0+cs,y0+CELL); ctx.lineTo(x0,y0+CELL); ctx.lineTo(x0,y0+CELL-cs); ctx.stroke();
-      // bottom-right
-      ctx.beginPath(); ctx.moveTo(x0+CELL-cs,y0+CELL); ctx.lineTo(x0+CELL,y0+CELL); ctx.lineTo(x0+CELL,y0+CELL-cs); ctx.stroke();
-      // Deterministic micro-nodes on ~20% of tiles
-      const h = ((c*73856093^r*19349663)>>>0)%100;
-      if (h < 20) {
-        ctx.fillStyle = 'rgba(0,212,255,0.10)';
-        ctx.beginPath(); ctx.arc(x0+CELL/2, y0+CELL/2, CELL*0.055, 0, Math.PI*2); ctx.fill();
-        if (h < 8) {
-          ctx.strokeStyle = 'rgba(0,212,255,0.07)';
-          ctx.lineWidth = 0.8;
-          const dir = h < 4 ? 1 : 0;
-          ctx.beginPath();
-          ctx.moveTo(x0+CELL/2, y0+CELL/2);
-          if (dir) { ctx.lineTo(x0+CELL*0.82, y0+CELL/2); }
-          else     { ctx.lineTo(x0+CELL/2, y0+CELL*0.82); }
-          ctx.stroke();
-        }
+      if (map[r][c] === 0) {
+        ctx.fillStyle = '#0d1e38';
+        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
       }
     }
   }
 
   // Buildable highlight (when placing tower)
   if (selectedTool >= 0) {
-    const alpha = 0.06 + 0.03 * Math.sin(gridPulse);
+    const alpha = 0.04 + 0.02 * Math.sin(gridPulse);
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (map[r][c] === 1) {
@@ -3778,105 +3725,47 @@ function drawBackground() {
 
 function drawPath() {
   if (pathPts.length < 2) return;
+  // Shadow path
   ctx.save();
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a3a6a';
+  ctx.lineWidth   = CELL * 0.72;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  ctx.moveTo(pathPts[0].x, pathPts[0].y);
+  pathPts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke();
 
-  // Layer 1 — dark abyss base
-  ctx.strokeStyle = '#040c1a';
-  ctx.lineWidth = CELL * 0.94;
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-
-  // Layer 2 — deep blue channel
-  ctx.strokeStyle = '#071832';
-  ctx.lineWidth = CELL * 0.84;
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-
-  // Layer 3 — mid blue fill
-  ctx.strokeStyle = '#0c2248';
-  ctx.lineWidth = CELL * 0.74;
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-
-  // Layer 4 — edge glow (outer)
-  ctx.shadowBlur = CELL * 0.35; ctx.shadowColor = 'rgba(0,180,255,0.22)';
-  ctx.strokeStyle = 'rgba(0,150,220,0.22)';
-  ctx.lineWidth = CELL * 0.88;
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // Layer 5 — bright edge lines
-  ctx.strokeStyle = 'rgba(0,200,255,0.18)';
-  ctx.lineWidth = CELL * 0.90;
-  ctx.setLineDash([1, CELL*0.89]);
-  ctx.lineDashOffset = 0;
-  // (just re-draw the main path — the dash creates fine edge lines)
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
+  // Center dashes
+  ctx.strokeStyle = 'rgba(0,180,255,0.12)';
+  ctx.lineWidth   = 2;
+  ctx.setLineDash([7, 11]);
+  ctx.beginPath();
+  ctx.moveTo(pathPts[0].x, pathPts[0].y);
+  pathPts.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke();
   ctx.setLineDash([]);
-
-  // Layer 6 — animated energy flow dashes (travel direction)
-  const dashOffset = -(Date.now() / 60) % (CELL * 1.2);
-  ctx.strokeStyle = 'rgba(0,212,255,0.28)';
-  ctx.lineWidth = CELL * 0.18;
-  ctx.setLineDash([CELL * 0.38, CELL * 0.82]);
-  ctx.lineDashOffset = dashOffset;
-  ctx.shadowBlur = CELL * 0.18; ctx.shadowColor = '#00d4ff';
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-  ctx.setLineDash([]); ctx.shadowBlur = 0;
-
-  // Layer 7 — faint secondary flow (opposite direction, slower)
-  const dashOffset2 = (Date.now() / 180) % (CELL * 2.0);
-  ctx.strokeStyle = 'rgba(80,160,255,0.12)';
-  ctx.lineWidth = CELL * 0.08;
-  ctx.setLineDash([CELL * 0.15, CELL * 1.85]);
-  ctx.lineDashOffset = dashOffset2;
-  ctx.beginPath(); ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
-  ctx.setLineDash([]);
-
   ctx.restore();
 
-  // Waypoint node glows at path turns
-  if (currentMap && currentMap.waypoints) {
-    for (let i = 1; i < currentMap.waypoints.length - 1; i++) {
-      const [wc, wr] = currentMap.waypoints[i];
-      const wx = wc * CELL + CELL/2, wy = wr * CELL + CELL/2;
-      const ng = ctx.createRadialGradient(wx, wy, 0, wx, wy, CELL * 0.55);
-      ng.addColorStop(0, 'rgba(0,200,255,0.20)');
-      ng.addColorStop(1, 'rgba(0,200,255,0)');
-      ctx.fillStyle = ng;
-      ctx.beginPath(); ctx.arc(wx, wy, CELL * 0.55, 0, Math.PI*2); ctx.fill();
-    }
-  }
-
   // Entry marker
-  ctx.save();
-  ctx.shadowBlur = CELL*0.4; ctx.shadowColor = '#00ff88';
-  ctx.fillStyle = '#00ff88';
-  ctx.beginPath(); ctx.arc(pathPts[0].x, pathPts[0].y, CELL*0.20, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(pathPts[0].x, pathPts[0].y, CELL*0.20, 0, Math.PI*2); ctx.stroke();
+  ctx.shadowBlur = 12; ctx.shadowColor = '#00ff88';
+  ctx.fillStyle  = '#00ff88';
+  ctx.beginPath(); ctx.arc(pathPts[0].x, pathPts[0].y, 7, 0, Math.PI*2); ctx.fill();
 
   // Exit marker
   const last = pathPts[pathPts.length - 1];
   ctx.shadowColor = '#ff3355';
-  ctx.fillStyle = '#ff3355';
-  ctx.beginPath(); ctx.arc(last.x, last.y, CELL*0.20, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-  ctx.beginPath(); ctx.arc(last.x, last.y, CELL*0.20, 0, Math.PI*2); ctx.stroke();
-  ctx.shadowBlur = 0; ctx.restore();
+  ctx.fillStyle   = '#ff3355';
+  ctx.beginPath(); ctx.arc(last.x, last.y, 7, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur  = 0;
 
   // Entry/exit labels
   ctx.font = `bold ${CELL*0.22}px Courier New`;
-  ctx.fillStyle = 'rgba(0,255,136,0.65)';
+  ctx.fillStyle = 'rgba(0,255,136,0.6)';
   ctx.textAlign = 'center';
-  ctx.fillText('ENTRADA', pathPts[0].x, pathPts[0].y - CELL*0.32);
-  ctx.fillStyle = 'rgba(255,51,85,0.65)';
-  ctx.fillText('SAÍDA', last.x, last.y - CELL*0.32);
+  ctx.fillText('ENTRADA', pathPts[0].x, pathPts[0].y - 12);
+  ctx.fillStyle = 'rgba(255,51,85,0.6)';
+  ctx.fillText('SAÍDA', last.x, last.y - 12);
   ctx.textAlign = 'left';
 }
 
@@ -3970,17 +3859,6 @@ function loop(ts) {
   drawWaveInfo();
   drops.forEach(d => d.draw());
   drawMission();
-
-  // Vignette overlay
-  {
-    const vg = ctx.createRadialGradient(
-      canvas.width*0.5, canvas.height*0.5, canvas.width*0.30,
-      canvas.width*0.5, canvas.height*0.5, canvas.width*0.85);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,10,0.55)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
 
   ctx.restore();
 }
