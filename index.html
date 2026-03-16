@@ -4186,13 +4186,26 @@ async function clearProgressCloud() {
 // ── Load cards/stars + progresso from Supabase ───────────────────
 async function loadCardsCloud() {
   if (!supaUser) return;
-  const { data } = await supa.from('save_data')
-    .select('tower_cards, tower_stars, current_level, current_score, current_gems, current_gold, current_lives')
-    .eq('user_id', supaUser.id).single();
+  let data = null;
+  try {
+    const res = await supa.from('save_data')
+      .select('tower_cards, tower_stars, current_level, current_score, current_gems, current_gold, current_lives, updated_at')
+      .eq('user_id', supaUser.id).single();
+    data = res.data;
+  } catch (_) {} // Supabase offline → cai no localStorage
+
+  // Sempre verifica localStorage (funciona mesmo com Supabase pausado)
+  const local = loadProgressLocal();
+
   if (!data) {
-    await saveCardsCloud();
+    // Supabase sem row ou offline — usa localStorage como única fonte
+    if (local && local.level > 0) {
+      savedProgress = { level: local.level, score: local.score ?? 0, gems: local.gems ?? 0, gold: local.gold ?? 150, lives: local.lives ?? 10 };
+    }
+    saveCardsCloud(); // tenta criar row; falha silenciosa se offline
     return;
   }
+
   // Mescla cartas e estrelas (mantém o maior valor)
   if (Array.isArray(data.tower_cards) && data.tower_cards.length === 10)
     towerCards     = towerCards.map((v, i) => Math.max(v, data.tower_cards[i] || 0));
@@ -4200,6 +4213,7 @@ async function loadCardsCloud() {
     towerStarLevel = towerStarLevel.map((v, i) => Math.max(v, data.tower_stars[i] || 0));
   saveCardData();
   await saveCardsCloud();
+
   // Carrega progresso de run em andamento (nuvem)
   const cloudLevel = data.current_level ?? 0;
   if (cloudLevel > 0) {
@@ -4213,8 +4227,8 @@ async function loadCardsCloud() {
   } else {
     savedProgress = null;
   }
-  // Fallback: localStorage (pode ter save mais recente)
-  const local = loadProgressLocal();
+
+  // Prefere localStorage se for mais recente que o dado da nuvem
   if (local && local.level > 0 && (!savedProgress || local.ts > (data.updated_at ? new Date(data.updated_at).getTime() : 0))) {
     savedProgress = { level: local.level, score: local.score ?? 0, gems: local.gems ?? 0, gold: local.gold ?? 150, lives: local.lives ?? 10 };
   }
