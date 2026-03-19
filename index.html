@@ -1436,7 +1436,7 @@ const E_DEF = [
   { name:'Chefe',       hp:700, spd:0.8, rew:52, col:'#ff0044', sz:0.50, flying:false, armor:0,    regen:0, squad:false },
   { name:'Blindado',    hp:380, spd:0.9, rew:27, col:'#cc9900', sz:0.40, flying:false, armor:0.40, regen:0, squad:false },
   { name:'Regenerador', hp:160, spd:1.4, rew:24, col:'#00ffaa', sz:0.32, flying:false, armor:0,    regen:3, squad:false },
-  { name:'Voador',      hp:80,  spd:3.2, rew:30, col:'#88ccff', sz:0.26, flying:true,  armor:0,    regen:0, squad:false },
+  { name:'Voador',      hp:80,  spd:3.2, rew:30, col:'#88ccff', sz:0.26, flying:false, armor:0,    regen:0, squad:false },
   { name:'Esquadrão',   hp:200, spd:1.2, rew:34, col:'#ff9944', sz:0.38, flying:false, armor:0,    regen:0, squad:true  },
 ];
 
@@ -1591,7 +1591,7 @@ function genWavesForLevel(lvl) {
   if (lvl >= 5)  heavyPool.push(5);  // Blindado
   if (lvl >= 6)  lightPool.push(6);  // Regenerador
   if (lvl >= 7)  heavyPool.push(2);  // Tanque
-  if (lvl >= 8)  lightPool.push(7);  // Voador
+  if (lvl >= 8)  lightPool.push(7);  // Voador (rápido, segue o caminho)
   if (lvl >= 10) lightPool.push(8);  // Esquadrão
 
   const fullPool = [...lightPool, ...heavyPool];
