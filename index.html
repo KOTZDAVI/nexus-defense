@@ -111,7 +111,6 @@
       justify-content: center;
       gap: 3px;
       padding: 4px 6px;
-      overflow-x: hidden;
       flex-shrink: 0;
     }
 
@@ -829,6 +828,136 @@
       max-width: 300px;
       line-height: 1.5;
       min-height: 16px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESPONSIVIDADE — 320px → 4K
+    ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Celulares muito pequenos (até 380px) ── */
+    @media (max-width: 380px) {
+      #hud { padding: 4px 4px; }
+      .hud-label { font-size: 0.44rem; }
+      .hud-value { font-size: 0.78rem; }
+      .hud-item  { gap: 0px; }
+
+      #towerBar  { gap: 2px; padding: 3px 3px; }
+      .tower-btn { min-width: 42px; padding: 3px 2px; font-size: 0.50rem; gap: 0px; }
+      .t-icon-canvas { width: 24px !important; height: 24px !important; }
+      .tower-btn .t-cost { font-size: 0.48rem; }
+      .tower-btn .t-rate { font-size: 0.42rem; }
+
+      #abilitiesBar { gap: 3px; padding: 3px 4px; }
+      .ability-btn  { padding: 3px 1px; }
+      .ab-icon  { font-size: 0.9rem; }
+      .ab-name  { font-size: 0.40rem; }
+      .ab-cost  { font-size: 0.42rem; }
+      .ab-timer { font-size: 0.42rem; }
+
+      #controls  { gap: 4px; padding: 4px 4px; }
+      .ctrl-btn  { font-size: 0.60rem; padding: 6px 2px; }
+      #btnSpeed  { flex: 0 0 58px; }
+
+      #towerPanel { padding: 7px 7px 8px; gap: 5px; }
+      #panelTitle { font-size: 0.75rem; }
+      #panelStats { font-size: 0.50rem; }
+      #btnPanelUpgrade, #btnPanelSell { font-size: 0.62rem; padding: 8px 4px; }
+      #btnPanelClose   { flex: 0 0 36px; font-size: 0.9rem; padding: 8px 2px; }
+    }
+
+    /* ── Celulares médios (381px – 499px) — padrão atual, sem mudanças ── */
+
+    /* ── Tablet (500px – 767px) ── */
+    @media (min-width: 500px) {
+      #hud, #canvasWrap, #towerBar, #controls, #abilitiesBar, #towerPanel {
+        max-width: min(620px, 96vw);
+      }
+
+      #hud { padding: 8px 14px; }
+      .hud-label { font-size: 0.60rem; }
+      .hud-value { font-size: 1.05rem; }
+      .hud-item  { gap: 2px; }
+
+      #towerBar  { gap: 5px; padding: 6px 10px; }
+      .tower-btn { min-width: 60px; padding: 5px 7px; font-size: 0.63rem; }
+      .t-icon-canvas { width: 34px !important; height: 34px !important; }
+      .tower-btn .t-cost { font-size: 0.60rem; }
+      .tower-btn .t-rate { font-size: 0.54rem; }
+      .tower-btn .t-icon { font-size: 1.4rem; }
+
+      #abilitiesBar { gap: 6px; padding: 6px 10px; }
+      .ability-btn  { padding: 5px 3px; }
+      .ab-icon  { font-size: 1.15rem; }
+      .ab-name  { font-size: 0.54rem; }
+      .ab-cost  { font-size: 0.56rem; }
+      .ab-timer { font-size: 0.56rem; }
+
+      #controls { gap: 8px; padding: 7px 10px; }
+      .ctrl-btn { font-size: 0.78rem; padding: 10px 6px; }
+      #btnSpeed { flex: 0 0 82px; }
+
+      #towerPanel   { padding: 11px 14px 12px; gap: 8px; }
+      #panelTitle   { font-size: 0.95rem; }
+      #panelStats   { font-size: 0.62rem; }
+      #btnPanelTarget   { font-size: 0.66rem; padding: 6px 11px; }
+      #btnPanelUpgrade  { font-size: 0.80rem; padding: 12px 8px; }
+      #btnPanelSell     { font-size: 0.78rem; padding: 12px 10px; min-width: 90px; }
+      #btnPanelClose    { flex: 0 0 48px; font-size: 1.1rem; padding: 12px 4px; }
+
+      .overlay-title { font-size: 2.8rem; }
+      .overlay-sub   { font-size: 0.88rem; max-width: 380px; }
+      .auth-form     { width: 320px; }
+      #rankingList, #dashRankingList, .dash-player-card,
+      .dash-section-title, .dash-btns { max-width: 380px; }
+      #shopItems { max-width: 420px; }
+      #cardsList  { max-width: 440px; }
+    }
+
+    /* ── Desktop (768px +) ── */
+    @media (min-width: 768px) {
+      #hud, #canvasWrap, #towerBar, #controls, #abilitiesBar, #towerPanel {
+        max-width: min(700px, 88vw);
+      }
+
+      #hud { padding: 10px 18px; }
+      .hud-label { font-size: 0.65rem; }
+      .hud-value { font-size: 1.15rem; }
+
+      #towerBar  { gap: 6px; padding: 7px 12px; }
+      .tower-btn { min-width: 66px; padding: 6px 8px; font-size: 0.67rem; }
+      .t-icon-canvas { width: 38px !important; height: 38px !important; }
+      .tower-btn .t-icon { font-size: 1.5rem; }
+
+      #abilitiesBar { gap: 8px; padding: 7px 12px; }
+      .ab-icon  { font-size: 1.25rem; }
+      .ab-name  { font-size: 0.58rem; }
+      .ab-cost  { font-size: 0.60rem; }
+      .ab-timer { font-size: 0.60rem; }
+
+      #controls { gap: 10px; padding: 8px 12px; }
+      .ctrl-btn { font-size: 0.84rem; padding: 11px 8px; }
+      #btnSpeed { flex: 0 0 88px; }
+
+      #towerPanel   { padding: 12px 16px 14px; }
+      #panelTitle   { font-size: 1.0rem; }
+      #btnPanelUpgrade { font-size: 0.84rem; }
+      #btnPanelSell    { font-size: 0.82rem; min-width: 96px; }
+
+      .overlay-title { font-size: 3.0rem; }
+      .overlay-sub   { max-width: 440px; font-size: 0.92rem; }
+      .auth-form     { width: 360px; }
+      #rankingList, #dashRankingList, .dash-player-card,
+      .dash-section-title, .dash-btns { max-width: 440px; }
+      #shopItems { max-width: 480px; }
+      #cardsList  { max-width: 500px; }
+      .dash-player-name { font-size: 1.1rem; }
+    }
+
+    /* ── Widescreen / 4K (1440px +) ── */
+    @media (min-width: 1440px) {
+      #hud, #canvasWrap, #towerBar, #controls, #abilitiesBar, #towerPanel {
+        max-width: min(760px, 70vw);
+      }
     }
   </style>
 </head>
