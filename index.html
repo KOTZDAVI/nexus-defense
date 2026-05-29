@@ -1286,22 +1286,96 @@ const canvas  = document.getElementById('canvas');
 const ctx     = canvas.getContext('2d');
 const wrap    = document.getElementById('canvasWrap');
 
-// ── Pixel-art sprite system ──────────────────────────────────────
+// ── Pixel-art sprite system — gerado inline no canvas (sem arquivos externos) ──
 const TOWER_SPRITE_ID = ['laser','missile','tesla','cryo','sniper','plasma','mortar','amplifier','nodule','antiair'];
 const ENEMY_SPRITE_ID = ['drone','soldier','tank','stealth','boss','armored','regen','flyer','squad'];
 const SPRITES = {};
-let _sprDebounce = 0;
 
-(function loadSprites() {
-  const names = [];
-  TOWER_SPRITE_ID.forEach(n => names.push(`tower-${n}`, `tower-${n}-fire`));
-  ENEMY_SPRITE_ID.forEach(n => names.push(`enemy-${n}`, `enemy-${n}-1`));
-  names.forEach(name => {
-    const img = new Image();
-    img.onload  = () => { clearTimeout(_sprDebounce); _sprDebounce = setTimeout(() => { if (typeof renderTowerBarIcons === 'function') renderTowerBarIcons(); }, 60); };
-    img.onerror = () => console.warn('[Sprites] falhou ao carregar:', name);
-    img.src = `assets/${name}.svg`;
-    SPRITES[name] = img;
+(function buildSprites() {
+  const E = '................';
+  const bU = (r,d) => [...r.slice(d), ...Array(d).fill(E)];
+  const bD = (r,d) => [...Array(d).fill(E), ...r.slice(0,16-d)];
+
+  function mkCV(rows, pal) {
+    const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+    const cx = cv.getContext('2d');
+    for (let y = 0; y < Math.min(rows.length,16); y++) {
+      const row = rows[y]; let x = 0;
+      while (x < Math.min(row.length,16)) {
+        const ch = row[x];
+        if (ch==='.'||ch===' '||!pal[ch]) { x++; continue; }
+        let w=1; while (x+w<row.length && x+w<16 && row[x+w]===ch) w++;
+        cx.fillStyle=pal[ch]; cx.fillRect(x,y,w,1); x+=w;
+      }
+    }
+    return cv;
+  }
+
+  // ── Torres ──────────────────────────────────────────────────────────
+  const T = {
+    laser: { pal:{W:'#ffffff',B:'#00d4ff',b:'#00aadd',M:'#0077bb',D:'#004488',E:'#002255',N:'#001133',S:'#55e8ff',K:'#081420'}, rows:['................','................','................','....KKKKKKKK....','....KKMMMMMK....','....KMBBBMBK....','....KMBbBBMKBBBB','....KMBWBBMKBbBW','....KMBbBBMKBBBB','....KMBBBMBK....','....KKMMMMMK....','....KKKKKKKK....','................','................','................','................'] },
+    missile:{ pal:{W:'#ffffff',O:'#ff8c00',o:'#cc6600',Y:'#ffcc44',G:'#666666',g:'#333333',K:'#1a0a00',R:'#ff4400',B:'#bbbbbb',b:'#888888'}, rows:['................','................','....KKKKKKKKK...','....KGGgGGGGK...','....KGOOOOOBK...','....KGOoooobK...','....KGOooOObKOOR.','....KGBBBBBBKoRW','....KGOooOObKOOR.','....KGOoooobK...','....KGOOOOOBK...','....KGGgGGGGK...','....KKKKKKKKK...','................','................','................'] },
+    tesla:  { pal:{W:'#ffffff',P:'#cc44ff',p:'#9922cc',v:'#6600aa',V:'#440088',Y:'#ffee44',y:'#ccbb00',K:'#0a0010',G:'#888888'}, rows:['................','................','....KKKKKKKKK...','....KVVVVVVvK...','....KVppppvvK...','....KVpPPPpvK...','....KVpPWPpvKPPPP','....KVpPWPpvKpYpY','....KVpPWPpvKPPPP','....KVpPPPpvK...','....KVppppvvK...','....KVVVVVVvK...','....KKKKKKKKK...','................','................','................'] },
+    cryo:   { pal:{W:'#ffffff',C:'#88ddff',c:'#44aacc',B:'#0077aa',b:'#004488',K:'#000d1a',S:'#ccf8ff',G:'#aaddee'}, rows:['................','................','....KKKKKKKK....','....KBBbBBbK....','....KBCCCCbK....','....KBCSScbK....','....KBCSScbKCCCC','....KBCWWcbKcSSW','....KBCSScbKCCCC','....KBCSScbK....','....KBCCCCbK....','....KBBbBBbK....','....KKKKKKKK....','................','................','................'] },
+    sniper: { pal:{W:'#ffffff',N:'#44ff88',n:'#22bb55',G:'#117733',g:'#0a4420',K:'#0a100a',B:'#888888',b:'#555555',Y:'#ffee44',S:'#ccffdd'}, rows:['................','................','....KKKKKKKK....','....KGGgGGgK....','....KGNNNNgK....','....KGNnNngK....','....KGNnNngKNNNNNNNN','....KGNWNngKnnnnnnnW','....KGNnNngKNNNNNNNN','....KGNNNNgK....','....KGGgGGgK....','....KKKKKKKK....','................','................','................','................'] },
+    plasma: { pal:{W:'#ffffff',F:'#ff5500',f:'#cc3300',O:'#ff8844',Y:'#ffcc00',R:'#aa2200',K:'#130010',G:'#666666'}, rows:['................','................','....KKKKKKKKK...','....KRRRRRRfK...','....KRFFFFFfK...','....KRFOOFffK...','....KRFOWOfKFFFO','....KRFOYOfKFOFW','....KRFOWOfKFFFO','....KRFOOFffK...','....KRFFFFFfK...','....KRRRRRRfK...','....KKKKKKKKK...','................','................','................'] },
+    mortar: { pal:{W:'#ffffff',K:'#aa8844',k:'#886633',Y:'#ccaa55',B:'#554422',b:'#332211',D:'#111111',d:'#0a0a0a',G:'#888888',O:'#ff8800'}, rows:['................','...DDDDDDDDD....','..DBBBBBBBBbD...','..DBKKKKKKbbD...','..DBKYYYYkbD....','..DBKYOYkbD.....','..DBKYYYkbD.....','..DBKYOYkbD.....','..DBKYYYkbD.....','..DBKKKKKbbD....','..DBBBBBBBbD....','..DBbbbbbbbD....','...DDDDDDDDD....','................','................','................'] },
+    amplifier:{ pal:{W:'#ffffff',A:'#ffee44',a:'#ccbb00',G:'#aa8800',g:'#665500',D:'#111108',K:'#0a0800',S:'#ffffaa',B:'#888866'}, rows:['................','......AAAA......','.....AAAAAA.....','....AAAAAAAAAA..','...AAAaWWaAAA...','..AAAAaWWWaAAAA.','..AAaWWWWWWaAAAAAAa','..AAaWWWWWWaAAAAa..','..AAaWWWWWWaAAAA.','..AAAAaWWWaAAAA.','...AAAaWWaAAA...','....AAAAAAAAAA..','.....AAAAAA.....','......AAAA......','................','................'] },
+    nodule: { pal:{W:'#ffffff',N:'#44ff88',n:'#22cc55',G:'#118833',g:'#0a5522',D:'#050f08',S:'#aaffcc',Y:'#ffff44'}, rows:['................','................','......NNNN......','.....NNnNNN.....','....NNnSSnnN....','....NnSWWSnN....','....NnSWYWSnNNNN','....NnSWYWSnnnng','....NnSWYWSnNNNN','....NnSWWSnN....','....NNnSSnnN....','.....NNnNNN.....','......NNNN......','................','................','................'] },
+    antiair:{ pal:{W:'#ffffff',T:'#00ffcc',t:'#00ccaa',C:'#008877',c:'#005544',D:'#001a14',K:'#000d0a',G:'#888888',g:'#555555',Y:'#ffee44'}, rows:['................','................','....KKKKKKKK....','....KCCCCCCK....','....KCTTTTcK....','....KCTtttcKTTTT','....KCTtttcKtttW','....KCccccCK....','....KCccccCK....','....KCTtttcKTTTT','....KCTtttcKtttW','....KCCCCCcK....','....KKKKKKKK....','................','................','................'] },
+  };
+
+  // ── Torres — frame fire ─────────────────────────────────────────────────
+  function mkFire(base, changes) {
+    const rows=[...base.rows]; changes.forEach(([i,v])=>{rows[i]=v;}); return {pal:base.pal,rows};
+  }
+  const TF = {
+    laser:    mkFire(T.laser,    [[7,'....KMBWBBMKBWBb']]),
+    missile:  {pal:T.missile.pal,rows:(()=>{const r=[...T.missile.rows];r[6]='....KGOooOObKOOR.';r[7]='....KGBBBBBBKORW';r[8]='....KGOooOObKOOR.';return r;})()},
+    tesla:    {pal:T.tesla.pal,  rows:(()=>{const r=[...T.tesla.rows];r[5]='YY..KVpPPPpvK...';r[6]='....KVpPWPpvKPYPY';r[7]='....KVpPWPpvKYPYW';r[8]='....KVpPWPpvKPYPY';r[9]='YY..KVpPPPpvK...';return r;})()},
+    cryo:     {pal:T.cryo.pal,   rows:(()=>{const r=[...T.cryo.rows];r[6]='....KBCSScbKSSCC';r[7]='....KBCWWcbKcSSW';r[8]='....KBCSScbKSSCC';return r;})()},
+    sniper:   {pal:T.sniper.pal, rows:(()=>{const r=[...T.sniper.rows];r[6]='WNNN KGNnNngKNNNNNNNN';r[7]='....KGNWNngKnnnnnnnW';return r;})()},
+    plasma:   {pal:T.plasma.pal, rows:(()=>{const r=[...T.plasma.rows];r[6]='....KRFOWOfKFYFW';r[7]='....KRFOYOfKWYWW';r[8]='....KRFOWOfKFYFW';return r;})()},
+    mortar:   {pal:{...T.mortar.pal,S:'#dddddd',s:'#aaaaaa'},rows:(()=>{const r=[...T.mortar.rows];r[4]='..DBKYSYkbD.....';r[5]='..DBKSOSsbD.....';r[6]='..DBKSSWSkbD....';r[7]='..DBKSOSsbD.....';r[8]='..DBKYSYkbD.....';return r;})()},
+    amplifier:{pal:T.amplifier.pal,rows:(()=>{const r=[...T.amplifier.rows];r[0]='AAAAAAAAAAAAAAAA';r[1]='AWWWWWWWWWWWWWWA';r[5]='AAAAA aWWWaAAAAA.';r[6]='AAAAAaWWWWWWaAAA';r[14]='AWWWWWWWWWWWWWWA';r[15]='AAAAAAAAAAAAAAAA';return r;})()},
+    nodule:   {pal:{...T.nodule.pal,Z:'#ffdd00'},rows:(()=>{const r=[...T.nodule.rows];r[0]='ZZZZZZZZZZZZZZZ.';r[1]='ZWWWWWWWWWWWWWWZ';r[6]='....NnSWYWSnNNNN';r[7]='....NnSWZWSnZZZZ';r[14]='ZWWWWWWWWWWWWWWZ';r[15]='ZZZZZZZZZZZZZZZ.';return r;})()},
+    antiair:  {pal:T.antiair.pal,rows:(()=>{const r=[...T.antiair.rows];r[5]='....KCTtttcKTTTT';r[6]='WWWW KCTtttcKtttW';r[7]='....KCccccCK....';r[9]='....KCTtttcKTTTT';r[10]='WWWW KCTtttcKtttW';return r;})()},
+  };
+
+  // ── Inimigos ──────────────────────────────────────────────────────────────
+  const EN = {
+    drone:   { pal:{W:'#ffffff',R:'#ff3355',r:'#cc1133',Y:'#ffcc00',G:'#888888',g:'#555555',B:'#222222'}, rows:['................','..g.........g...', '.gGg.......gGg..','..gRRRRRRRRg....','...RRRRRRRR.....','...RRrYYrRR.....','...RrYWWYrR.....','...RRrYYrRR.....','...RRRRRRRR.....','..gRRRRRRRRg....','.gGg.......gGg..','..g.........g...','................','................','................','................'] },
+    soldier: { pal:{W:'#ffffff',O:'#ff7700',o:'#cc5500',B:'#222222',b:'#111111',H:'#886633',Y:'#ffee44'}, rows:['................','......HHHH......','.....HBBBBo.....','.....HBWWBB.....','.....HBBBB......','....OOOOOOOO....','....OoOOOooO....','....OoYYYooO....','....OoOOOooO....','....OOOOOOOO....','....OO....OO....','....OO....OO....','....Oo....oO....','....Ob....bO....','....bb....bb....','................'] },
+    tank:    { pal:{W:'#ffffff',P:'#aa00ff',p:'#7700cc',V:'#550099',v:'#330066',Y:'#ffee44',G:'#777777',g:'#444444',D:'#222222'}, rows:['................','................','.GGGgGGGGGGgGGG.','GGpPPPPPPPPPPpGG','GpPPpWWWWWpPPpPG','GpPPpWVVVpPPPpPG','GpPPpWVYVpPPPpPG','GpPPpWVVVpPPPpPG','GpPPpWWWWWpPPpPG','GGpPPPPPPPPPPpGG','.GGGgGGGGGGgGGG.','................','...GgGGGGGGgG...','...GGDDDDDDgG...','................','................'] },
+    stealth: { pal:{W:'#ffffff',N:'#00ff88',n:'#00cc55',G:'#008833',g:'#005522',S:'#aaffcc',B:'#111111'}, rows:['................','......nnnn......','.....nNNNNn.....','....nNSNSNNn....','....nNNNNNNn....','...gnNNNNNNng...','...gnNNNNNNng...','...gnNnBnNNng...','...gnNNNNNNng...','...gnNNNNNNng...','....gnNNNNng....','....GggggggG....','...GGgDDDgGG....','...GgddddddG....','..DDdddddddD....','................'] },
+    boss:    { pal:{W:'#ffffff',R:'#ff0044',r:'#cc0033',X:'#880022',x:'#440011',Y:'#ffcc00',O:'#ff6600',G:'#555555',g:'#333333',D:'#222222',d:'#111111'}, rows:['...XRRRRRRRRX...','..XRRrRRRrRRX...','..XRrRWRWRrRX...','..XRrRWRWRrRX...','..XRrRrYRrRrX...','..XRrrROORrrX...','.XRRRrrRRrrRRX..','.XRRRrrRRrrRRX..','.XRRrDDDDDrRRX..','.XRRRrrRRrrRRX..','..XXRRRrrRRXX...','..XXRrXXXrRXX...','..XXxRRRRRXXX...','..XXxdDDDdXXX...','..XXxddddddXXX..',  '...XxddddddX....'] },
+    armored: { pal:{W:'#ffffff',K:'#cc9900',k:'#996600',Y:'#ffee44',B:'#333333',b:'#1a1a1a',G:'#888888',D:'#554400',d:'#221100'}, rows:['....KKKKKKKK....','...KKkYYYYkKK...','...KKkYWWYkKK...','...KKkYWWYkKK...','...KKkYYYYkKK...','..KKKKKKKKkKKK..','..KKKkBBBBkKKK..','..KKKkBkBBkKKK..','..KKKkBBBBkKKK..','..KKKKKKKKkKKK..','..KKKkKKKkkKKK...','...KkKKKKKKkK...','...KkDDDDDDkK...','...KkdddddddK...','..KKkdddddddKK..','...KkdddddddK...'] },
+    regen:   { pal:{W:'#ffffff',T:'#00ffaa',t:'#00cc88',C:'#008855',c:'#005533',S:'#aaffee',Y:'#ffff00',G:'#88ffdd',d:'#334433'}, rows:['......GGGG......','.....GTttTG.....','....GTtSSttG....','....GTSWWStG....','....GTSWWSttG...','....GTtSStttG...','.....GTttTG.....','.....CTTTTC.....','.....CTttTC.....','.....CTtYtC.....','.....CTttTC.....','.....CTTTTC.....','....CCttttCC....','....CcddddcC....','...DDdddddddD...','....DdddddddD...'] },
+    flyer:   { pal:{W:'#ffffff',F:'#88ccff',f:'#4499cc',B:'#1166aa',b:'#003377',Y:'#ffee44',G:'#666666'}, rows:['F.............FF','FF...........FFF','FFF.........FFFF','FFff.......ffffF','FFfBBfffffBBfFFF','..fBBfffffBBf...','...fBBBBBBBf....','...fBfWWWfBf....','...fBfWYWfBf....','...fBfWWWfBf....','...fBBBBBBBf....','...fBbbbbbBf....','....fBbbbBf.....','  ...fbbbf......','......bbb.......','................'] },
+    squad:   { pal:{W:'#ffffff',O:'#ff9944',o:'#cc6611',H:'#886633',B:'#333333',b:'#1a1a1a',Y:'#ffee44'}, rows:['..HH.HH.HH......','.BOBB.BOBB......','OOoOO.OOoOO.....','OoYoO.OoYoO.....','OoOoO.OoOoO.....','OOOOO.OOOOO.....', '.OO....OO.......','.OO....OO.......','.bb....bb.......','................','...HH.HH........','..BOBB.BOBB.....', '.OOoOO.OOoOO....', '.OoYoO.OoYoO....', '.OOOOO.OOOOO....', '.OO.....OO......'] },
+  };
+
+  // ── Inimigos — frame 1 (walk) ─────────────────────────────────────────────
+  const EW = {
+    drone:   {pal:EN.drone.pal,   rows:bU(EN.drone.rows,2)},
+    soldier: {pal:EN.soldier.pal, rows:(()=>{const r=[...EN.soldier.rows];r[10]='....oO......Oo..';r[11]='....oO......Oo..';r[12]='....Oo......oO..';r[13]='....Ob......bO..';r[14]='....bb......bb..';return r;})()},
+    tank:    {pal:EN.tank.pal,    rows:(()=>{const r=[...EN.tank.rows];r[12]='...gGGGGGGGGgG..';r[13]='...GGgDDDDDGgG..';return r;})()},
+    stealth: {pal:EN.stealth.pal, rows:EN.stealth.rows.map(row=>row===E?E:'.'+row.slice(0,15))},
+    boss:    {pal:EN.boss.pal,    rows:bD(EN.boss.rows,1)},
+    armored: {pal:EN.armored.pal, rows:(()=>{const r=[...EN.armored.rows];r[12]='...KkDDDDDDkK...';r[13]='...KkdddddddK...';r[14]='..KkKddddddKkK..';r[15]='..KkKddddddKkK..';return r;})()},
+    regen:   {pal:EN.regen.pal,   rows:bU(EN.regen.rows,2)},
+    flyer:   {pal:EN.flyer.pal,   rows:(()=>{const r=[...EN.flyer.rows];r[0]='................';r[1]='F...............';r[2]='FF...........FF.';r[3]='FFF.........FFF.';r[4]='FFff.......ffffF';return r;})()},
+    squad:   {pal:EN.squad.pal,   rows:bU(EN.squad.rows,1)},
+  };
+
+  // ── Gera todos os canvases ─────────────────────────────────────────────────
+  TOWER_SPRITE_ID.forEach(n => {
+    if (T[n])  SPRITES[`tower-${n}`]      = mkCV(T[n].rows,  T[n].pal);
+    if (TF[n]) SPRITES[`tower-${n}-fire`] = mkCV(TF[n].rows, TF[n].pal);
+  });
+  ENEMY_SPRITE_ID.forEach(n => {
+    if (EN[n]) SPRITES[`enemy-${n}`]   = mkCV(EN[n].rows, EN[n].pal);
+    if (EW[n]) SPRITES[`enemy-${n}-1`] = mkCV(EW[n].rows, EW[n].pal);
   });
 })();
 
@@ -2622,7 +2696,7 @@ class Tower {
         ? `tower-${TOWER_SPRITE_ID[this.typeIdx]}-fire`
         : `tower-${TOWER_SPRITE_ID[this.typeIdx]}`;
       const img = SPRITES[key];
-      if (img && img.complete && img.naturalWidth > 0) {
+      if (img) {
         const ds = CELL * 0.86;
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(img, -ds * 0.5, -ds * 0.5, ds, ds);
@@ -3085,9 +3159,8 @@ class Enemy {
     {
       const baseKey = `enemy-${ENEMY_SPRITE_ID[this.typeIdx]}`;
       const walkKey = `${baseKey}-1`;
-      const img = (this.walkFrame === 1 && SPRITES[walkKey] && SPRITES[walkKey].complete && SPRITES[walkKey].naturalWidth > 0)
-        ? SPRITES[walkKey]
-        : (SPRITES[baseKey] && SPRITES[baseKey].complete && SPRITES[baseKey].naturalWidth > 0 ? SPRITES[baseKey] : null);
+      const img = (this.walkFrame === 1 && SPRITES[walkKey]) ? SPRITES[walkKey]
+               : (SPRITES[baseKey] ? SPRITES[baseKey] : null);
 
       if (img) {
         const ds = s * 2.2;
@@ -3924,7 +3997,7 @@ function renderTowerBarIcons() {
     // Use pixel-art sprite if loaded, otherwise fall back to procedural
     const sprKey = `tower-${TOWER_SPRITE_ID[tid]}`;
     const img = SPRITES[sprKey];
-    if (img && img.complete && img.naturalWidth > 0) {
+    if (img) {
       c2.clearRect(0, 0, css, css);
       c2.fillStyle = '#0a1520';
       c2.beginPath(); c2.roundRect(2, 2, css - 4, css - 4, 6); c2.fill();
