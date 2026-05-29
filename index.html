@@ -1290,6 +1290,7 @@ const wrap    = document.getElementById('canvasWrap');
 const TOWER_SPRITE_ID = ['laser','missile','tesla','cryo','sniper','plasma','mortar','amplifier','nodule','antiair'];
 const ENEMY_SPRITE_ID = ['drone','soldier','tank','stealth','boss','armored','regen','flyer','squad'];
 const SPRITES = {};
+let _sprDebounce = 0;
 
 (function loadSprites() {
   const names = [];
@@ -1297,6 +1298,8 @@ const SPRITES = {};
   ENEMY_SPRITE_ID.forEach(n => names.push(`enemy-${n}`, `enemy-${n}-1`));
   names.forEach(name => {
     const img = new Image();
+    img.onload  = () => { clearTimeout(_sprDebounce); _sprDebounce = setTimeout(() => { if (typeof renderTowerBarIcons === 'function') renderTowerBarIcons(); }, 60); };
+    img.onerror = () => console.warn('[Sprites] falhou ao carregar:', name);
     img.src = `assets/${name}.svg`;
     SPRITES[name] = img;
   });
@@ -2612,7 +2615,8 @@ class Tower {
       ctx.globalAlpha = 1;
     }
 
-    // ── Pixel-art sprite (replaces procedural drawing) ───────────
+    // ── Pixel-art sprite (fallback procedural se não carregou) ──
+    let _sprDrawn = false;
     {
       const key = this.firingAnim > 0
         ? `tower-${TOWER_SPRITE_ID[this.typeIdx]}-fire`
@@ -2622,11 +2626,11 @@ class Tower {
         const ds = CELL * 0.86;
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(img, -ds * 0.5, -ds * 0.5, ds, ds);
+        _sprDrawn = true;
       }
     }
 
-    // keep switch block below — runs only if sprite is unavailable (fallback)
-    if (false) { switch (this.typeIdx) {
+    if (!_sprDrawn) { ctx.fillStyle = c; ctx.strokeStyle = c; switch (this.typeIdx) {
       case 0: { // Laser — canhão de energia
         // Bloco de suporte traseiro
         ctx.fillStyle = '#0a1e2e';
@@ -2858,7 +2862,7 @@ class Tower {
           ctx.fillRect(s*ox-s*0.08,s*(oy+0.38),s*0.16,s*0.10);
         });
         break; }
-    } } // end if(false) fallback block
+    } } // end fallback block
 
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -3076,7 +3080,8 @@ class Enemy {
 
     ctx.shadowBlur = flash ? 0 : 8; ctx.shadowColor = c;
 
-    // ── Pixel-art sprite with walk cycle ────────────────────────
+    // ── Pixel-art sprite com walk cycle (fallback procedural se falhar) ──
+    let _eSprDrawn = false;
     {
       const baseKey = `enemy-${ENEMY_SPRITE_ID[this.typeIdx]}`;
       const walkKey = `${baseKey}-1`;
@@ -3089,8 +3094,7 @@ class Enemy {
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         if (this.typeIdx === 3) ctx.globalAlpha = 0.58;  // stealth semi-transparent
-        // Mirror sprite when moving leftward
-        if (this._px - this.x > 0.3) ctx.scale(-1, 1);
+        if (this._px - this.x > 0.3) ctx.scale(-1, 1);  // mirror ao mover para esquerda
         ctx.drawImage(img, -ds * 0.5, -ds * 0.5, ds, ds);
         if (flash) {
           ctx.globalCompositeOperation = 'source-atop';
@@ -3099,11 +3103,11 @@ class Enemy {
           ctx.globalCompositeOperation = 'source-over';
         }
         ctx.restore();
+        _eSprDrawn = true;
       }
     }
 
-    // keep switch block below as fallback (only runs if sprite missing)
-    if (false) { switch (this.typeIdx) {
+    if (!_eSprDrawn) { switch (this.typeIdx) {
       case 0: { // Drone: quadricóptero sci-fi
         const t0 = Date.now() / 120; // rotação das hélices
         // Braços do quadricóptero
@@ -3391,7 +3395,7 @@ class Enemy {
 
       default: { // fallback
         ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill(); }
-    } } // end if(false) fallback block
+    } } // end fallback block
 
     ctx.globalAlpha = 1; ctx.shadowBlur = 0; // reset before effect rings
 
@@ -3915,7 +3919,7 @@ function renderTowerBarIcons() {
     el.style.width  = css + 'px';
     el.style.height = css + 'px';
     const c2 = el.getContext('2d');
-    c2.scale(dpr, dpr);
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);  // reset + scale (evita acúmulo em re-renders)
 
     // Use pixel-art sprite if loaded, otherwise fall back to procedural
     const sprKey = `tower-${TOWER_SPRITE_ID[tid]}`;
