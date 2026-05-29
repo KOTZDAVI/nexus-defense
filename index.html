@@ -1286,6 +1286,22 @@ const canvas  = document.getElementById('canvas');
 const ctx     = canvas.getContext('2d');
 const wrap    = document.getElementById('canvasWrap');
 
+// ── Pixel-art sprite system ──────────────────────────────────────
+const TOWER_SPRITE_ID = ['laser','missile','tesla','cryo','sniper','plasma','mortar','amplifier','nodule','antiair'];
+const ENEMY_SPRITE_ID = ['drone','soldier','tank','stealth','boss','armored','regen','flyer','squad'];
+const SPRITES = {};
+
+(function loadSprites() {
+  const names = [];
+  TOWER_SPRITE_ID.forEach(n => names.push(`tower-${n}`, `tower-${n}-fire`));
+  ENEMY_SPRITE_ID.forEach(n => names.push(`enemy-${n}`, `enemy-${n}-1`));
+  names.forEach(name => {
+    const img = new Image();
+    img.src = `assets/${name}.svg`;
+    SPRITES[name] = img;
+  });
+})();
+
 // ── Sizing ──────────────────────────────────────────────────────
 const COLS = 10;
 const ROWS = 14;
@@ -2481,6 +2497,7 @@ class Tower {
     this.angle      = 0;
     this.cooldown   = 0;
     this.flashT     = 0;
+    this.firingAnim = 0;
     this.targetMode = 'first';  // 'first' | 'last' | 'strong' | 'weak'
     this.targeting  = null;
     towerUsage[typeIdx]++;
@@ -2513,8 +2530,9 @@ class Tower {
 
   update(dt) {
     if (this.tdef.spec === 'boost' || this.tdef.spec === 'income') return;
-    if (this.cooldown > 0) this.cooldown -= dt;
-    if (this.flashT   > 0) this.flashT   -= dt;
+    if (this.cooldown   > 0) this.cooldown   -= dt;
+    if (this.flashT     > 0) this.flashT     -= dt;
+    if (this.firingAnim > 0) this.firingAnim -= dt;
     if (this.cooldown > 0) return;
 
     const tgt = this._findTarget();
@@ -2552,6 +2570,7 @@ class Tower {
     const spec = this.tdef.spec;
     projectiles.push(new Projectile(this.cx, this.cy, tgt, this.dmg(), this.tdef.col, spec));
     spawnMuzzle(this.cx, this.cy, this.tdef.col, 3);
+    this.firingAnim = 0.18;
   }
 
   draw() {
@@ -2577,7 +2596,7 @@ class Tower {
 
     if (fi) { ctx.shadowBlur = 18; ctx.shadowColor = c; }
 
-    // Base
+    // Base plate (rotation-invariant square, fine to rotate)
     ctx.fillStyle = '#081420';
     ctx.strokeStyle = c + '66';
     ctx.lineWidth = 1.5;
@@ -2593,10 +2612,21 @@ class Tower {
       ctx.globalAlpha = 1;
     }
 
-    ctx.fillStyle = c;
-    ctx.strokeStyle = c;
+    // ── Pixel-art sprite (replaces procedural drawing) ───────────
+    {
+      const key = this.firingAnim > 0
+        ? `tower-${TOWER_SPRITE_ID[this.typeIdx]}-fire`
+        : `tower-${TOWER_SPRITE_ID[this.typeIdx]}`;
+      const img = SPRITES[key];
+      if (img && img.complete && img.naturalWidth > 0) {
+        const ds = CELL * 0.86;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, -ds * 0.5, -ds * 0.5, ds, ds);
+      }
+    }
 
-    switch (this.typeIdx) {
+    // keep switch block below — runs only if sprite is unavailable (fallback)
+    if (false) { switch (this.typeIdx) {
       case 0: { // Laser — canhão de energia
         // Bloco de suporte traseiro
         ctx.fillStyle = '#0a1e2e';
@@ -2828,7 +2858,7 @@ class Tower {
           ctx.fillRect(s*ox-s*0.08,s*(oy+0.38),s*0.16,s*0.10);
         });
         break; }
-    }
+    } } // end if(false) fallback block
 
     ctx.restore();
     ctx.shadowBlur = 0;
@@ -2899,6 +2929,11 @@ class Enemy {
     this.burnT = 0; this.burnDmg = 0; this.burnTick = 0;
     this.bossHalo = (typeIdx === 4 || typeIdx === 5) ? 0 : -1;
     this.regenTick = 0;
+    // Walk animation
+    this.walkFrame = 0;
+    this.walkDist  = 0;
+    this._px = this.x;
+    this._py = this.y;
     // Voador: guarda distância total para calcular pIdx proporcional
     if (this.flying && pathPts.length >= 2) {
       const ex = pathPts[pathPts.length-1], en = pathPts[0];
@@ -2979,6 +3014,16 @@ class Enemy {
         this.pIdx = ni - 1 + (d - rem) / d; rem = 0;
       }
     }
+
+    // Walk animation frame cycling (every ~0.28 cells of travel)
+    const moved = Math.hypot(this.x - this._px, this.y - this._py);
+    this.walkDist += moved;
+    if (this.walkDist > CELL * 0.28) {
+      this.walkDist = 0;
+      this.walkFrame = 1 - this.walkFrame;
+    }
+    this._px = this.x;
+    this._py = this.y;
   }
 
   hit(dmg) {
@@ -3029,11 +3074,36 @@ class Enemy {
       ctx.restore();
     }
 
-    if (this.typeIdx === 3) ctx.globalAlpha = 0.55;  // Stealth semi-transparente
-    ctx.fillStyle = c; ctx.strokeStyle = c;
     ctx.shadowBlur = flash ? 0 : 8; ctx.shadowColor = c;
 
-    switch (this.typeIdx) {
+    // ── Pixel-art sprite with walk cycle ────────────────────────
+    {
+      const baseKey = `enemy-${ENEMY_SPRITE_ID[this.typeIdx]}`;
+      const walkKey = `${baseKey}-1`;
+      const img = (this.walkFrame === 1 && SPRITES[walkKey] && SPRITES[walkKey].complete && SPRITES[walkKey].naturalWidth > 0)
+        ? SPRITES[walkKey]
+        : (SPRITES[baseKey] && SPRITES[baseKey].complete && SPRITES[baseKey].naturalWidth > 0 ? SPRITES[baseKey] : null);
+
+      if (img) {
+        const ds = s * 2.2;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (this.typeIdx === 3) ctx.globalAlpha = 0.58;  // stealth semi-transparent
+        // Mirror sprite when moving leftward
+        if (this._px - this.x > 0.3) ctx.scale(-1, 1);
+        ctx.drawImage(img, -ds * 0.5, -ds * 0.5, ds, ds);
+        if (flash) {
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = 'rgba(255,255,255,0.82)';
+          ctx.fillRect(-ds * 0.5, -ds * 0.5, ds, ds);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        ctx.restore();
+      }
+    }
+
+    // keep switch block below as fallback (only runs if sprite missing)
+    if (false) { switch (this.typeIdx) {
       case 0: { // Drone: quadricóptero sci-fi
         const t0 = Date.now() / 120; // rotação das hélices
         // Braços do quadricóptero
@@ -3321,7 +3391,9 @@ class Enemy {
 
       default: { // fallback
         ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill(); }
-    }
+    } } // end if(false) fallback block
+
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0; // reset before effect rings
 
     // Halo de boss / Blindado
     if (this.bossHalo >= 0 && this.typeIdx !== 4) { // typeIdx 4 já tem halo próprio
@@ -3844,7 +3916,20 @@ function renderTowerBarIcons() {
     el.style.height = css + 'px';
     const c2 = el.getContext('2d');
     c2.scale(dpr, dpr);
-    drawTowerIcon(c2, tid, css);
+
+    // Use pixel-art sprite if loaded, otherwise fall back to procedural
+    const sprKey = `tower-${TOWER_SPRITE_ID[tid]}`;
+    const img = SPRITES[sprKey];
+    if (img && img.complete && img.naturalWidth > 0) {
+      c2.clearRect(0, 0, css, css);
+      c2.fillStyle = '#0a1520';
+      c2.beginPath(); c2.roundRect(2, 2, css - 4, css - 4, 6); c2.fill();
+      c2.imageSmoothingEnabled = false;
+      const pad = 3;
+      c2.drawImage(img, pad, pad, css - pad * 2, css - pad * 2);
+    } else {
+      drawTowerIcon(c2, tid, css);
+    }
   });
 }
 
@@ -3857,27 +3942,84 @@ let shockwaves = [];
 let bgStars = [];
 let goldPrev = 0;
 
+// ── Pixel-art map tiles ───────────────────────────────────────────
+let _tileGnd = null, _tilePath = null, _tileBuiltCell = 0;
+
+function _makeTile16(rows, pal) {
+  const oc = document.createElement('canvas');
+  oc.width = oc.height = 16;
+  const cx = oc.getContext('2d');
+  cx.fillStyle = pal['.'] || '#000000';
+  cx.fillRect(0, 0, 16, 16);
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < rows[r].length; c++) {
+      const ch = rows[r][c];
+      if (ch === '.' || !pal[ch]) continue;
+      cx.fillStyle = pal[ch];
+      cx.fillRect(c, r, 1, 1);
+    }
+  }
+  return oc;
+}
+
+function buildMapTiles() {
+  if (_tileBuiltCell === CELL) return;
+  _tileBuiltCell = CELL;
+
+  // Ground: dark tech floor — grid lines at every 8px seam, rivets at corners, subtle texture dots
+  _tileGnd = _makeTile16([
+    'NGGGGGGGNGGGGGGG',
+    'G.......G.......',
+    'G..D....G.....D.',
+    'G.......G..L....',
+    'G...D...G.......',
+    'G.......G.......',
+    'G.......GD......',
+    'G....D..G.......',
+    'NGGGGGGGNGGGGGGG',
+    'G.......G.......',
+    'G....L..G.......',
+    'G.......G.......',
+    'G.D.....G...L...',
+    'G.......G.......',
+    'G.......G..D....',
+    'G..L....G.......',
+  ], { '.': '#050a12', G: '#0d1e35', N: '#1a3560', D: '#030608', L: '#0e1b30' });
+
+  // Path: worn tech road — subtle scatter pixels, no directional bias
+  _tilePath = _makeTile16([
+    '................',
+    '..S........S....',
+    '................',
+    '.L..........L...',
+    '................',
+    '................',
+    '....S......S....',
+    '................',
+    '................',
+    '.....L.......L..',
+    '................',
+    '................',
+    '..S......S......',
+    '................',
+    '................',
+    '..........L.....',
+  ], { '.': '#0d1e38', S: '#0a1830', L: '#152c50' });
+}
+
 function drawBackground() {
-  ctx.fillStyle = '#06080f';
+  buildMapTiles();
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = '#050a12';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Grid lines
-  ctx.strokeStyle = 'rgba(0,212,255,0.04)';
-  ctx.lineWidth = 0.5;
-  for (let c = 1; c < COLS; c++) {
-    ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,canvas.height); ctx.stroke();
-  }
-  for (let r = 1; r < ROWS; r++) {
-    ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(canvas.width,r*CELL); ctx.stroke();
-  }
-
-  // Path surface
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (map[r][c] === 0) {
-        ctx.fillStyle = '#0d1e38';
-        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
-      }
+      ctx.drawImage(
+        map[r][c] === 0 ? _tilePath : _tileGnd,
+        c * CELL, r * CELL, CELL, CELL
+      );
     }
   }
 
@@ -3897,21 +4039,15 @@ function drawBackground() {
 
 function drawPath() {
   if (pathPts.length < 2) return;
-  // Shadow path
+
+  // Animated flow dashes along path
   ctx.save();
-  ctx.strokeStyle = '#1a3a6a';
-  ctx.lineWidth   = CELL * 0.72;
+  ctx.strokeStyle = 'rgba(0,180,255,0.10)';
+  ctx.lineWidth   = 2;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
-  ctx.beginPath();
-  ctx.moveTo(pathPts[0].x, pathPts[0].y);
-  pathPts.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.stroke();
-
-  // Center dashes
-  ctx.strokeStyle = 'rgba(0,180,255,0.12)';
-  ctx.lineWidth   = 2;
-  ctx.setLineDash([7, 11]);
+  ctx.setLineDash([5, 11]);
+  ctx.lineDashOffset = -((Date.now() * 0.03) % 16);
   ctx.beginPath();
   ctx.moveTo(pathPts[0].x, pathPts[0].y);
   pathPts.forEach(p => ctx.lineTo(p.x, p.y));
@@ -3919,25 +4055,40 @@ function drawPath() {
   ctx.setLineDash([]);
   ctx.restore();
 
-  // Entry marker
-  ctx.shadowBlur = 12; ctx.shadowColor = '#00ff88';
-  ctx.fillStyle  = '#00ff88';
-  ctx.beginPath(); ctx.arc(pathPts[0].x, pathPts[0].y, 7, 0, Math.PI*2); ctx.fill();
+  // Entry portal (pixel art hollow square)
+  const entry = pathPts[0];
+  const sq = Math.max(4, Math.floor(CELL * 0.20));
+  ctx.save();
+  ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88';
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(entry.x - sq, entry.y - sq, sq*2, sq*2);
+  ctx.fillStyle = '#001f10';
+  ctx.fillRect(entry.x - sq + 2, entry.y - sq + 2, sq*2-4, sq*2-4);
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(entry.x - 2, entry.y - 2, 4, 4);
+  ctx.restore();
 
-  // Exit marker
+  // Exit portal
   const last = pathPts[pathPts.length - 1];
-  ctx.shadowColor = '#ff3355';
-  ctx.fillStyle   = '#ff3355';
-  ctx.beginPath(); ctx.arc(last.x, last.y, 7, 0, Math.PI*2); ctx.fill();
-  ctx.shadowBlur  = 0;
+  ctx.save();
+  ctx.shadowBlur = 14; ctx.shadowColor = '#ff3355';
+  ctx.fillStyle = '#ff3355';
+  ctx.fillRect(last.x - sq, last.y - sq, sq*2, sq*2);
+  ctx.fillStyle = '#1f0008';
+  ctx.fillRect(last.x - sq + 2, last.y - sq + 2, sq*2-4, sq*2-4);
+  ctx.fillStyle = '#ff3355';
+  ctx.fillRect(last.x - 2, last.y - 2, 4, 4);
+  ctx.restore();
+
+  ctx.shadowBlur = 0;
 
   // Entry/exit labels
   ctx.font = `bold ${CELL*0.22}px Courier New`;
   ctx.fillStyle = 'rgba(0,255,136,0.6)';
   ctx.textAlign = 'center';
-  ctx.fillText('ENTRADA', pathPts[0].x, pathPts[0].y - 12);
+  ctx.fillText('ENTRADA', entry.x, entry.y - sq - 4);
   ctx.fillStyle = 'rgba(255,51,85,0.6)';
-  ctx.fillText('SAÍDA', last.x, last.y - 12);
+  ctx.fillText('SAÍDA', last.x, last.y - sq - 4);
   ctx.textAlign = 'left';
 }
 
